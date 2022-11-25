@@ -41,5 +41,21 @@ async def register(userId:str,username:str,password:str):
     values = await conn.execute(
         sql, userId, username, pwd_context.encrypt(password)
     )
-    print(values)
+    return values
 
+@check_conn
+async def login(userId:str):
+    global conn
+    sql = 'select password from web_project."user" where "userId" = $1'
+    values = await conn.fetch(
+        sql, userId
+    )
+    return values
+@check_conn
+async def jwt_get_info(userId:str):
+    global conn
+    sql = 'select "userId","username" from web_project."user" where "userId" = $1'
+    values = await conn.fetch(
+        sql,userId
+    )
+    return values

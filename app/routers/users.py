@@ -5,26 +5,10 @@ from models import pgsql
 
 import traceback
 router = APIRouter()
-@router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    print(user)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post('/register', response_model=Response)
 async def register(form_data: User): 
     if len(await pgsql.check_register(form_data.userId)) !=0:
-        print(123)
         return {'code':401,'message':'当前用户Id已存在','data':{}}
     try:
         await pgsql.register(form_data.userId,form_data.username,form_data.password)
@@ -32,7 +16,22 @@ async def register(form_data: User):
     except:
         traceback.print_exc()
         return {'code':500,'message':'未知错误！','data':{}}
-
+@router.post('/login', response_model=Response)
+async def login(form_data: User):
+    password =await pgsql.login(form_data.userId)
+    if len(password) == 0:
+        return {'code':401,'message':'当前用户或密码错误','data':{}}
+    password = password[0].get('password')
+    if not await verify_password(form_data.password, password):
+        return {'code':401,'message':'当前用户或密码错误','data':{}}
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": form_data.userId}, expires_delta=access_token_expires
+    )
+    return {'code':200,'message':'登陆成功','data':{'token':access_token}}
+@router.post('/getuserinfo',response_model=Response)
+async def getUserInfo(form_data:User = Depends(get_current_active_user)):
+    return {'code':0,'message':'查询成功','data':{'userId':form_data['userId'],'username':form_data['username']}}
 # @router.get("/users/me/", response_model=User)
 # async def read_users_me(current_user: User = Depends(get_current_active_user)):
 #     return current_user
