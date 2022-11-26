@@ -4,33 +4,33 @@
 # print(pwd_context.encrypt('secret'))
 
 
-import asyncio
-import asyncpg
+# import asyncio
+# import asyncpg
 
-async def run():
-    conn = await asyncpg.connect(user='rolemee', password='',
-                                 database='web-project' ,host='127.0.0.1')
-    values = await conn.fetch(
-       'SELECT like_id FROM web_project."answer"',
+# async def run():
+#     conn = await asyncpg.connect(user='rolemee', password='',
+#                                  database='web-project' ,host='127.0.0.1')
+#     values = await conn.fetch(
+#        'SELECT like_id FROM web_project."answer"',
        
-    )
-    # sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3);'
-    # values = await conn.execute(
-    #     sql,"1234","312","444"
-    # )
-    # print(values)
+#     )
+#     # sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3);'
+#     # values = await conn.execute(
+#     #     sql,"1234","312","444"
+#     # )
+#     # print(values)
     
-    await conn.close()
-    # print(values[0].get('password'))
-    for i in values:
-        for j in i:
-            print(j)
-        print()
-    return values
+#     await conn.close()
+#     # print(values[0].get('password'))
+#     for i in values:
+#         for j in i:
+#             print(j)
+#         print()
+#     return values
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(run())[0]
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(run())[0]
 
 
 # from app.models import pgsql
@@ -48,3 +48,20 @@ loop.run_until_complete(run())[0]
 # print(''.join(lazy_pinyin(u',./\n中啊啥的啊啥的啊啥的啊啥的啊啥的犬瘟热去拉萨前往俄欧日u前往哦i恶评如心')))
 # print(''.join(lazy_pinyin(u'啊啥的aa,./?a11',style=Style.FIRST_LETTER)))
 # # print(lambda pinyin_list[0]: ''.)
+
+
+import re
+print(re.search('44\d','334455447').group())
+x = [123,445]
+
+class A:
+    def __init__(self,test) -> None:
+        self.test = test
+
+
+a = A(123)
+import json 
+l = []
+l.append(json.dumps(a.__dict__))
+print(a.__dict__)
+print()
