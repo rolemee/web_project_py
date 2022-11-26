@@ -32,10 +32,16 @@ async def login(form_data: User):
 @router.post('/getuserinfo',response_model=Response)
 async def getUserInfo(form_data:User = Depends(get_current_active_user)):
     return {'code':0,'message':'查询成功','data':{'userId':form_data['userId'],'username':form_data['username']}}
-# @router.get("/users/me/", response_model=User)
-# async def read_users_me(current_user: User = Depends(get_current_active_user)):
-#     return current_user
 
-# @router.get("/users/me/items/")
-# async def read_own_items(current_user: User = Depends(get_current_active_user)):
-#     return [{"item_id": "Foo", "owner": current_user.username}]
+@router.get('/like',response_model=Response)
+async def like(qid:int=0, aid:int =0,user:User=Depends(get_current_active_user)):
+    if qid == 0 and aid == 0:
+            return {'code':400,'message':'参数缺失','data':{}}
+    return await pgsql.like(qid,aid,user.get('userId'))
+
+@router.get('/removelike',response_model=Response)
+async def remove_like(qid:int=0, aid:int =0,user:User =Depends(get_current_active_user)):
+    if qid == 0 and aid == 0:
+            return {'code':400,'message':'参数缺失','data':{}}
+    return await pgsql.remove_like(qid,aid,user.get('userId'))
+

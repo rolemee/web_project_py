@@ -13,28 +13,9 @@ from fastapi.responses import JSONResponse
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "userId": '123',
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$FRJ8M0HkMJPH8woZXG7ddONPVSrPUp3amEXTwvpAiLc8tdt5S2vb2",
-        "disabled": False,
-    }
-}
 class ErrorOwn(Exception):
     def __init__(self, msg: str):
         self.msg = msg
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: Union[str, None] = None
-
 
 class User(BaseModel):
     userId : str
@@ -46,10 +27,6 @@ class Response(BaseModel):
     message: str
     data: dict
 
-class UserInDB(User):
-    hashed_password: str
-
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -57,7 +34,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def unicorn_exception_handler(request: Request, exc: ErrorOwn):
     return JSONResponse(
         status_code=418,
-        content={'code':418,'massage':'token认证失败','data':{}},
+        content={'code':418,'massage':exc.msg,'data':{}},
     )
 
 async def verify_password(plain_password, hashed_password):
@@ -75,12 +52,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    print(token)
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"a":'asd'},
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    credentials_exception = ErrorOwn(msg="token认证失败")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         print(payload)
@@ -88,7 +60,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if userId is None:
             raise credentials_exception
     except JWTError:
-        raise ErrorOwn(msg="123123")
+        raise credentials_exception
     user =await pgsql.jwt_get_info(userId)
     if len(user) == 0:
         raise credentials_exception
@@ -96,7 +68,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    # if current_user.disabled:
-    #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
