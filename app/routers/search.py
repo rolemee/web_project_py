@@ -1,19 +1,8 @@
 from fastapi import Depends, FastAPI, APIRouter
 from dependencies import *
 from models import pgsql
-
+from models import mlsearch
 router = APIRouter()
-# async def make_dict(quiz_list:list):
-#     quiz_info = {}
-#     data_list = []
-#     for i in quiz_list:
-#         i_keys = list(i.keys())
-#         i_values = list(i.values())
-#         for _ in range(len(i_keys)):
-#             quiz_info[i_keys[_]] = i_values[_]
-#         data_list.append(quiz_info)
-#         quiz_info.clear()
-#     return data_list
 
 @router.get('/popularanswer', response_model=Response)
 async def popular_answer():
@@ -22,8 +11,12 @@ async def popular_answer():
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 @router.get('/search',response_model=Response)
-async def search(text:str = ''):
-    return ''
+async def search(q:str = ''):
+    quiz_list,search_time = await mlsearch.search(query_text=q)
+    try:
+        return {'code':'200','message':'查询成功','data':{'quiz_list':quiz_list,'search_time':str(search_time)+'ms'}}
+    except:
+        {'code':'500','message':'服务器错误','data':{}}
 
 @router.get('/quizinfo',response_model=Response)
 async def quiz_info(qid:int = 0):
@@ -35,3 +28,6 @@ async def quiz_info(qid:int = 0):
     # quiz = await make_dict(quiz)
     return {'code':'200','message':'查询成功','data':{'quiz_list':quiz}}
 
+@router.get('/abtest')
+async def abtest():
+    return ''
