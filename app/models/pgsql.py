@@ -151,3 +151,11 @@ async def search(id_list:list=[]):
             sql, id_list
         )
         return values
+@check_conn
+async def search_answer(sql:str = '' ,id:int = 0,userId:str=""):
+    global pool
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql, userId,id
+        )
+    return values

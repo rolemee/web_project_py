@@ -11,3 +11,6 @@ pip install -r requirements.txt
 **python=3.10.0**
 
 ## 3.使用说明
+
+
+改了fastapi.security.oauth2.py和fastapi.security.__init__.py
