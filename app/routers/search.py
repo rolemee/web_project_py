@@ -20,10 +20,14 @@ async def search(q:str = ''):
         {'code':500,'message':'服务器错误','data':{}}
 
 @router.get('/quizinfo',response_model=Response)
-async def quiz_info(qid:int = 0):
+async def quiz_info(request:Request,qid:int = 0,userId:str=""):
+    if userId != "":
+        token = OAuth2PasswordBearer('token')
+        token = await token(request)
+        userId = (await get_current_user(token=token)).get('userId')
     if qid == 0:
         return {'code':400,'message':'请输入qid','data':{}}
-    quiz =await pgsql.quiz_info(qid)
+    quiz =await pgsql.quiz_info(qid,userId)
     if len(quiz) == 0:
         return {'code':401,'message':'问题不存在','data':{}}
     # quiz = await make_dict(quiz)
@@ -33,8 +37,8 @@ async def quiz_info(qid:int = 0):
 async def search_answer(request:Request,aid:int=0,qid:int=0,userId:str=""):
     if userId != "":
         token = OAuth2PasswordBearer('token')
-        await token(request)
-        print()
+        token = await token(request)
+        userId = (await get_current_user(token=token)).get('userId')
     sql = 'select id, "userId", qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where qid = $2'
     id = qid
     if qid == 0:

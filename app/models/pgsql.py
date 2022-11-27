@@ -72,12 +72,12 @@ async def popular_quiz():
         return values
 
 @check_conn
-async def quiz_info(qid:int):
+async def quiz_info(qid:int,userId:str):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where qid=$1;'
+        sql = 'select qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike, max_like_reply_id, ans_num,(select $1=any(like_id::text[])) is_like from web_project.quiz where qid=$2;'
         values = await connection.fetch(
-            sql,qid
+            sql,userId,qid
         )
         return values
 

@@ -45,3 +45,5 @@ async def remove_like(qid:int=0, aid:int =0,user:User =Depends(get_current_activ
             return {'code':400,'message':'参数缺失','data':{}}
     return await pgsql.remove_like(qid,aid,user.get('userId'))
 
+# @router.get('/postquestion',response_model=Response)
+# async def post_question():
