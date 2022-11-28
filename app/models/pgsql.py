@@ -46,7 +46,7 @@ async def register(userId:str,username:str,password:str):
 async def login(userId:str):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select password from web_project."user" where "userId" = $1'
+        sql = 'select password,rights from web_project."user" where "userId" = $1'
         values = await connection.fetch(
             sql, userId
         )

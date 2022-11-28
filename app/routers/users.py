@@ -18,15 +18,16 @@ async def register(form_data: User):
         return {'code':500,'message':'未知错误！','data':{}}
 @router.post('/login', response_model=Response)
 async def login(form_data: User):
-    password =await pgsql.login(form_data.userId)
-    if len(password) == 0:
+    res =await pgsql.login(form_data.userId)
+    if len(res) == 0:
         return {'code':401,'message':'当前用户或密码错误','data':{}}
-    password = password[0].get('password')
+    password = res[0].get('password')
+    rights = res[0].get('rights')
     if not await verify_password(form_data.password, password):
         return {'code':401,'message':'当前用户或密码错误','data':{}}
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": form_data.userId}, expires_delta=access_token_expires
+        data={"userId": form_data.userId, "rights":rights}, expires_delta=access_token_expires
     )
     return {'code':200,'message':'登陆成功','data':{'token':access_token}}
 @router.post('/getuserinfo',response_model=Response)
