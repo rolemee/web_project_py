@@ -18,16 +18,16 @@ async def insert_username(userId,username,password):
             sql,userId,username,password
         )
     return values
-async def insert_quiz(qid,userId,time,title,conntent,like,dislike,answer_num):
+async def insert_quiz(qid,userId,time,title,conntent,like,dislike,answer_num,keyWords):
     global conn
-    sql = """INSERT INTO web_project.quiz (qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike,
-                              max_like_reply_id, ans_num, like_id)
+    sql = """INSERT INTO web_project.quiz (qid, "userId", time, title, content, "keyWords", "like", dislike,
+                              max_like_reply_id, ans_num, like_id,star_id)
 VALUES ($8, $1::varchar(20), $2::timestamp, $3::varchar(255), $4::text,
-        null::varchar(255), null::varchar(255), $5::integer, $6::integer, DEFAULT, $7::integer, DEFAULT);
+        $9 ,$5::integer, $6::integer, DEFAULT, $7::integer, DEFAULT,DEFAULT);
 """
     async with conn.transaction():
         values = await conn.execute(
-            sql,userId,time,title,conntent,like,dislike,answer_num,qid
+            sql,userId,time,title,conntent,like,dislike,answer_num,qid,keyWords
         )
     return values
 async def insert_answer(aid,userId,qid,time,content,like,dislike):
@@ -41,7 +41,21 @@ VALUES ($1::integer, $2::varchar(20), $3::integer, $4::timestamp, $5::text, $6::
             sql,aid,userId,qid,time,content,like,dislike
         )
 
-
+async def finish_set():
+    sql = """
+    select setval('web_project.answer_id_seq',(select max(id) from web_project.answer))
+    """
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
+    sql = """
+    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz))
+    """
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
 loop = asyncio.get_event_loop()
 
 import traceback
@@ -64,7 +78,11 @@ for i in tqdm.tqdm(json_content):
         Time = i['time']
         if i['time'].find('-') ==-1:
             Time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(i['time'])))
-        loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply'])))
+        try:
+            loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
+        except:
+            time.sleep(0.01)
+            loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
         qid+=1
         if len(i['reply']) == 0:
             continue
@@ -88,14 +106,25 @@ for i in tqdm.tqdm(json_content):
                     Time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(i['time'])))
                 elif j['time'].find(':') ==-1:
                     Time = Time + " 00:00:00"
-                loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
+                try:
+                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
+                except:
+                    time.sleep(0.01)
             else:
-                 loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
+                try:
+                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
+                except:
+                    time.sleep(0.01)
+                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
             aid+=1
         except:
             traceback.print_exc()
             print()
             pass
+    
+loop.run_until_complete(finish_set())
 
 
-conn.close()
+
+
+# conn.close()

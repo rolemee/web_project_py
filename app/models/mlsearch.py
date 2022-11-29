@@ -1,14 +1,17 @@
 import os
 from meilisearch_python_async import Client
 from models import pgsql
-async def search(query_text:str = ""):
+from datetime import date
+async def search(start_time:date,end_time:date,query_text:str = "", offset:int = 0,limit:int = 10):
     async with Client('http://127.0.0.1:7700') as client:
         client =client.index('web_project') 
-        res = await client.search(query_text,attributes_to_retrieve=['id'],)
+        res = await client.search(query_text,attributes_to_retrieve=['id'],offset=offset,limit=limit)
         qid_list = list(map(lambda i:i['id'], res.hits))
         search_time = res.processing_time_ms
         totle_num = res.estimated_total_hits
-        res = await pgsql.search(qid_list)
+        res = await pgsql.search(start_time,end_time,qid_list)
+        if start_time != date(1970,1,1) or end_time != date(date.today().year,date.today().month,date.today().day):
+            totle_num = len(res)
         return res,search_time,totle_num
 
 # import asyncio

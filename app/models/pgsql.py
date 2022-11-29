@@ -2,6 +2,7 @@ import asyncio
 import asyncpg
 from passlib.context import CryptContext
 from functools import wraps
+from datetime import date
 
 import traceback
 pool = None
@@ -65,7 +66,7 @@ async def jwt_get_info(userId:str):
 async def popular_quiz():
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike, max_like_reply_id, ans_num from web_project.quiz order by "like",ans_num DESC limit 10;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,"userId" ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit 10;'
         values = await connection.fetch(
             sql
         )
@@ -75,7 +76,7 @@ async def popular_quiz():
 async def quiz_info(qid:int,userId:str):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike, max_like_reply_id, ans_num,(select $1=any(like_id::text[])) is_like from web_project.quiz where qid=$2;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,"userId" ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num,(select $1=any(like_id::text[])) is_like,(select $1=any(star_id::text[])) is_star from web_project.quiz where qid=$2;'
         values = await connection.fetch(
             sql,userId,qid
         )
@@ -143,12 +144,12 @@ async def remove_like(qid:int,aid:int,uid:str):
 
 
 @check_conn
-async def search(id_list:list=[]):
+async def search(start_time:date,end_time:date,id_list:list=[]):
     global pool
     async with pool.acquire() as conn:
-        sql = 'select qid, "userId", time, title, content, "keyOne", "keyTwo", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where qid=any($1);'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId")  username, "userId",time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where qid=any($1) and time > $2 and time < $3;'
         values = await conn.fetch(
-            sql, id_list
+            sql, id_list, start_time,end_time
         )
         return values
 @check_conn

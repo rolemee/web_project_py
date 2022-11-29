@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, APIRouter, Request
 from dependencies import *
 from models import pgsql
 from models import mlsearch
+from datetime import datetime,date
 import traceback
 router = APIRouter()
 
@@ -12,8 +13,8 @@ async def popular_answer():
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 @router.get('/search',response_model=Response)
-async def search(q:str = ''):
-    quiz_list,search_time,total_num = await mlsearch.search(query_text=q)
+async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day),offset:int = 0,limit:int = 10):
+    quiz_list,search_time,total_num = await mlsearch.search(start_time,end_time,query_text=q,offset=offset,limit=limit)
     try:
         return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list,'search_time':str(search_time)+'ms','total_num':total_num}}
     except:
@@ -34,17 +35,17 @@ async def quiz_info(request:Request,qid:int = 0,userId:str=""):
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz}}
 
 @router.get('/search_answer',response_model=Response)
-async def search_answer(request:Request,aid:int=0,qid:int=0,userId:str=""):
+async def search_answer(request:Request,aid:int=0,qid:int=0,userId:str="",limit:int=10,offset:int=0):
     if userId != "":
         token = OAuth2PasswordBearer('token')
         token = await token(request)
         userId = (await get_current_user(token=token)).get('userId')
-    sql = 'select id, "userId", qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where qid = $2'
+    sql = 'select id, (select username from web_project."user" u where u."userId"=answer."userId")  username,"userId", qid, time, content,"like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where qid = $2 limit $3 offset $4'
     id = qid
     if qid == 0:
         if aid == 0:
            return {'code':401,'message':'参数缺失','data':{}}
-        sql = 'select id, "userId", qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where id = $2'
+        sql = 'select id, (select username from web_project."user" u where u."userId"=answer."userId") username,"userId" ,qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where id = $2 limit $3 offset $4'
         id = aid
     try:
         res = await pgsql.search_answer(sql,id,userId)

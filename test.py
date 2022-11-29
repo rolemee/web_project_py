@@ -38,14 +38,32 @@ VALUES (1::integer, $1::timestamp);
 # from app.models import pgsql
 
 
+# 
+from datetime import datetime,date
+import time
+
+# Date = date(date.today())
+print(date.day)
+# print(Date)
+
+import os
+from meilisearch_python_async import Client
+from models import pgsql
+from datetime import date
+# async def search(query_text:str = ""):
+#     async with Client('http://127.0.0.1:7700') as client:
+#         client =client.index('web_project') 
+#         res = await client.search('shifu', {
+#   'attributesToCrop': ['overview'],
+#   'cropMarker': '[…]'
+# })
+#         print(res)
 import meilisearch
-client = meilisearch.Client('http://localhost:7700')
-# print(client.index('movies').delete())
-
-print(client.index('web_project').search('1',opt_params={"offset":20}))
-
-import chardet
-with open('data/yyj/html/82089.html','rb') as f:
-    f = f.read()
-
-print(chardet.detect(f)['encoding'])
+client = meilisearch.Client('http://127.0.0.1:7700')
+print(client.index('web_project').search('百度', {
+  'attributesToCrop': ['title'],
+  'cropMarker': '',
+  'cropLength': 3
+}))
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(search('百度'))
