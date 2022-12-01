@@ -6,13 +6,26 @@ from datetime import datetime,date
 import traceback
 router = APIRouter()
 
-@router.get('/popularanswer', response_model=Response)
-async def popular_answer():
-    quiz_list = await pgsql.popular_quiz()
-    # quiz_list = await make_dict(quiz_list=quiz_list)
+@router.get('/api/getquiz', response_model=Response)
+async def get_quiz(sort:str='popular'):
+    sort_list = ['popular','noanswer','haveanswer']
+    if sort not in sort_list:
+        raise ErrorOwn("请正确输入",408)
+    if sort == 'popular':
+        quiz_list = await pgsql.popular_quiz()
+    elif sort == 'noanswer':
+        quiz_list = await pgsql.no_answer_quiz()
+    elif sort == 'haveanswer':
+        quiz_list = await pgsql.have_list_answer()
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
-@router.get('/search',response_model=Response)
+
+@router.get('/api/popularanswer',response_model=Response)
+async def popular_quiz(qid:int = 0):
+    quiz_list = await pgsql.popular_answer(qid)
+    return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
+
+@router.get('/api/search',response_model=Response)
 async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day),offset:int = 0,limit:int = 10):
     quiz_list,search_time,total_num = await mlsearch.search(start_time,end_time,query_text=q,offset=offset,limit=limit)
     try:
@@ -20,7 +33,7 @@ async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(d
     except:
         {'code':500,'message':'服务器错误','data':{}}
 
-@router.get('/quizinfo',response_model=Response)
+@router.get('/api/quizinfo',response_model=Response)
 async def quiz_info(request:Request,qid:int = 0,userId:str=""):
     if userId != "":
         token = OAuth2PasswordBearer('token')
@@ -34,7 +47,7 @@ async def quiz_info(request:Request,qid:int = 0,userId:str=""):
     # quiz = await make_dict(quiz)
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz}}
 
-@router.get('/search_answer',response_model=Response)
+@router.get('/api/search_answer',response_model=Response)
 async def search_answer(request:Request,aid:int=0,qid:int=0,userId:str="",limit:int=10,offset:int=0):
     if userId != "":
         token = OAuth2PasswordBearer('token')

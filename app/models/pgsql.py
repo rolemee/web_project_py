@@ -66,9 +66,38 @@ async def jwt_get_info(userId:str):
 async def popular_quiz():
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,"userId" ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit 10;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit 10;'
         values = await connection.fetch(
             sql
+        )
+        return values
+
+@check_conn
+async def no_answer_quiz():
+    global pool
+    async with pool.acquire() as conn:
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num=0 order by time DESC limit 10;'
+        values = await conn.fetch(
+            sql
+        )
+        return values
+@check_conn
+async def have_list_answer():
+    global pool
+    async with pool.acquire() as conn:
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit 10;'
+        values = await conn.fetch(
+            sql
+        )
+        return values
+
+@check_conn
+async def popular_answer(qid:int):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select id, get_username("userId"), qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
+        values = await connection.fetch(
+            sql,qid
         )
         return values
 
@@ -160,3 +189,39 @@ async def search_answer(sql:str = '' ,id:int = 0,userId:str=""):
             sql, userId,id
         )
     return values
+
+@check_conn
+async def star(qid:int,userId:str):
+    global pool
+    async with pool.acquire() as conn:
+        sql = 'select star_id from web_project.quiz where qid=$1'
+        values = await conn.fetch(
+            sql,qid
+        )
+        if len(values) == 0:
+            return {'code':'400','message':'未找到该问题','data':{}}
+        if userId in values[0].get('star_id'):
+            return {'code':'401','message':'你已经收藏了该问题','data':{}}
+        sql = 'update web_project.quiz set star_id = star_id || $1 where qid=$2'
+        values = await conn.execute(
+            sql,[userId],qid
+        )
+        return {'code':'200','message':'收藏成功','data':{}}
+
+@check_conn
+async def remove_star(qid:int,userId:str):
+    global pool
+    async with pool.acquire() as conn:
+        sql = 'select star_id from web_project.quiz where qid=$1'
+        values = await conn.fetch(
+            sql,qid
+        )
+        if len(values) == 0:
+            return {'code':'400','message':'未找到该问题','data':{}}
+        if userId not in values[0].get('star_id'):
+            return {'code':'401','message':'你还未收藏该问题','data':{}}
+        sql = 'update web_project.quiz set star_id = array_remove(star_id,$1) where qid=$2'
+        values = await conn.execute(
+            sql,userId,qid
+        )
+        return {'code':'200','message':'取消收藏成功','data':{}}
