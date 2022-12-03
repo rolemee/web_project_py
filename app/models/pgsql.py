@@ -6,24 +6,22 @@ from datetime import date
 
 import traceback
 pool = None
-pwd_context = None
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+lock = asyncio.Lock()
 def check_conn(func):
     @wraps(func)
     async def decorated(*args, **argv):
         global pool
         if pool is None:
             await init()
-        
         return await func(*args,**argv)
     return decorated
-
-
 async def init():
     global pool
-    global pwd_context
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    pool = await asyncpg.create_pool(user='rolemee', password='',
-        database='web-project' ,host='127.0.0.1',max_size=100)
+    async with lock:
+        if pool is None:
+            pool = await asyncpg.create_pool(user='rolemee', password='',
+                database='web-project' ,host='127.0.0.1',max_size=30)
 @check_conn
 async def check_register(userId:str):
     global pool
@@ -95,7 +93,7 @@ async def have_list_answer():
 async def popular_answer(qid:int):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select id, get_username("userId"), qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
+        sql = 'select id,  (select username from web_project."user" u where u."userId"=quiz."userId") username , qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
         values = await connection.fetch(
             sql,qid
         )
