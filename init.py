@@ -49,7 +49,7 @@ async def finish_set():
         values = await conn.fetch(
             sql
         )
-    sql = """
+        conn.commitsql = """
     select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz))
     """
     async with conn.transaction():
