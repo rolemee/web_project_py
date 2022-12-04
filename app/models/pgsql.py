@@ -180,11 +180,11 @@ async def search(start_time:date,end_time:date,id_list:list=[]):
         )
         return values
 @check_conn
-async def search_answer(sql:str = '' ,id:int = 0,userId:str=""):
+async def search_answer(sql:str = '' ,id:int = 0,userId:str="",limit:int=10,offset:int=0):
     global pool
     async with pool.acquire() as conn:
         values = await conn.fetch(
-            sql, userId,id
+            sql, userId,id,limit,offset
         )
     return values
 

@@ -61,7 +61,7 @@ async def search_answer(request:Request,aid:int=0,qid:int=0,userId:str="",limit:
         sql = 'select id, (select username from web_project."user" u where u."userId"=answer."userId") username,"userId" ,qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like from web_project.answer where id = $2 limit $3 offset $4'
         id = aid
     try:
-        res = await pgsql.search_answer(sql,id,userId)
+        res = await pgsql.search_answer(sql,id,userId,limit=limit,offset=offset)
         return {'code':200,'message':'查询成功','data':{'answer_list':res}}
     except:
         traceback.print_exc()
