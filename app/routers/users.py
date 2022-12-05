@@ -1,6 +1,6 @@
-from fastapi import Depends, FastAPI, APIRouter
+from fastapi import Depends, FastAPI, APIRouter, Form
 from dependencies import *
-from models import pgsql
+from models import pgsql, mlsearch
 
 
 import traceback
@@ -30,9 +30,19 @@ async def login(form_data: User):
         data={"userId": form_data.userId, "rights":rights}, expires_delta=access_token_expires
     )
     return {'code':200,'message':'登陆成功','data':{'token':access_token}}
-@router.post('/api/getuserinfo',response_model=Response)
-async def getUserInfo(form_data:User = Depends(get_current_active_user)):
-    return {'code':0,'message':'查询成功','data':{'userId':form_data['userId'],'username':form_data['username']}}
+@router.get('/api/getuserinfo',response_model=Response)
+async def getUserInfo(user:User = Depends(get_current_active_user),sort:str='starquiz'):
+    sort_list = ['starquiz','quiz','answer']
+    if sort not in sort_list:
+        raise ErrorOwn("请正确输入",408)
+    userId = user.get('userId')
+    if sort == 'starquiz':
+        quiz_list = await pgsql.star_quiz(userId=userId)
+    elif sort == 'quiz':
+        quiz_list = await pgsql.user_quiz(userId=userId)
+    elif sort == 'answer':
+        quiz_list = await pgsql.user_answer(userId=userId)
+    return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 @router.get('/api/like',response_model=Response)
 async def like(qid:int=0, aid:int =0,user:User=Depends(get_current_active_user)):
@@ -58,5 +68,43 @@ async def remove_str(qid:int=0,user:User=Depends(get_current_active_user)):
         raise ErrorOwn('参数缺失',400)
     return await pgsql.remove_star(qid,user.get('userId'))
 
-# @router.get('/postquestion',response_model=Response)
-# async def post_question():
+@router.post('/api/postquiz',response_model=Response)
+async def post_question(user:User =Depends(get_current_active_user),title:str=Form(),content:str=Form(),keywords:str=Form()):
+    try:
+        qid = await pgsql.post_quiz(user.get('userId'),title,content,keywords.split(','))
+        await mlsearch.insert(qid,title,keywords.split(','))
+        return {'code':200,'message':'发表问题成功','data':{"qid":qid}}
+    except:
+        return {'code':500,'message':'服务器错误','data':{}}
+
+@router.post('/api/delquiz',response_model=Response)
+async def del_quiz(user:User =Depends(get_current_active_user),qid:int=Form()):
+    try:
+        userId = await pgsql.check_user(qid)
+        if user.get('userId') != userId:
+            return {'code':400,'message':'请勿违规操作','data':{}}
+        await pgsql.del_quiz(qid)
+        await mlsearch.delete(qid)
+        return {'code':200,'message':'删除成功','data':{}}
+    except:
+        return {'code':500,'message':'服务器错误','data':{}}
+
+@router.post('/api/postanswer',response_model=Response)
+async def post_answer(user:User =Depends(get_current_active_user),content:str=Form(),qid:int=Form()):
+    try:
+        aid = await pgsql.post_answer(user.get('userId'),content,qid)
+        return {'code':200,'message':'发表问题成功','data':{"aid":aid}}
+    except:
+        return {'code':500,'message':'服务器错误','data':{}}
+
+@router.post('/api/delanswer',response_model=Response)
+async def del_answer(user:User =Depends(get_current_active_user),aid:int=Form()):
+    # try:
+        userId = await pgsql.check_user(aid,'answer','id')
+        if user.get('userId') != userId:
+            return {'code':400,'message':'请勿违规操作','data':{}}
+        await pgsql.del_answer(aid)
+
+        return {'code':200,'message':'删除成功','data':{}}
+    # except:
+    #     return {'code':500,'message':'服务器错误','data':{}}

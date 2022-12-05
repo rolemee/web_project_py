@@ -1,6 +1,7 @@
 import os
 from meilisearch_python_async import Client
 from models import pgsql
+from pypinyin import pinyin, lazy_pinyin, Style
 from datetime import date
 async def search(start_time:date,end_time:date,query_text:str = "", offset:int = 0,limit:int = 10):
     async with Client('http://127.0.0.1:7700') as client:
@@ -14,6 +15,23 @@ async def search(start_time:date,end_time:date,query_text:str = "", offset:int =
             totle_num = len(res)
         return res,search_time,totle_num
 
+async def insert(qid:int,title:str,keywords:list):
+    async with Client('http://127.0.0.1:7700') as client:
+        client =client.index('web_project')
+        res = await client.add_documents([{
+            'id':qid,
+            'title':title,
+            'TITLE_PINYIN': ''.join(lazy_pinyin(title)),
+            'title_pinyin_space': ' '.join(lazy_pinyin(title)),
+            'title_pinyin_firstLetter' : ''.join(lazy_pinyin(title,style=Style.FIRST_LETTER)),
+            'keyWords':' '.join(keywords)
+            
+        }])
+async def delete(qid:int):
+    async with Client('http://127.0.0.1:7700') as client:
+        client =client.index('web_project')
+        await client.delete_document(qid)
+        # print(res)
 # import asyncio
 # loop = asyncio.get_event_loop()
 # loop.run_until_complete(search('wo'))

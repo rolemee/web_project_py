@@ -4,35 +4,32 @@
 # print(pwd_context.encrypt('secret'))
 
 
-# import asyncio
-# import asyncpg
-# from datetime import datetime
-# async def run():
-#     conn = await asyncpg.connect(user='rolemee', password='',
-#                                  database='web-project' ,host='127.0.0.1')
+import asyncio
+import asyncpg
+from datetime import datetime
+async def run():
+    conn = await asyncpg.connect(user='rolemee', password='',
+                                 database='web-project' ,host='127.0.0.1')
 #     values = await conn.execute(
 #        """INSERT INTO web_project.test (test, test_time)
 # VALUES (1::integer, $1::timestamp);
 # """,
        
 #     )
-    # sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3);'
+    sql = 'INSERT INTO web_project."test" ("test") VALUES ($1) RETURNING "test2";'
     # values = await conn.execute(
-    #     sql,"1234","312","444"
+    #     sql,1
     # )
-    # print(values)
+    values = await conn.fetch(sql,1)
+    print(values)
     
-    # await conn.close()
-    # print(values[0].get('password'))
-    # for i in values:
-    #     for j in i:
-    #         print(j)
-    #     print()
-    # return values
+    await conn.close()
+    print(values[0].get('test2'))
+    return values
 
 
-# loop = asyncio.get_event_loop()
-# loop.run_until_complete(run())[0]
+loop = asyncio.get_event_loop()
+loop.run_until_complete(run())[0]
 
 
 # from app.models import pgsql
@@ -89,15 +86,15 @@ async def run(x):
 #     )
 #     await conn.close()
 #     return values
-def test(i):
-    global data
-    return asyncio.run(run(i))
-import json
-if __name__ == '__main__':
-    print(data)
-    print(type(data))
-    data = multiprocessing.Manager().list()
-    print(type(data))
-    with Pool(6) as p:
-        print(p.map(test, [1, 2, 3,4,5,6]))
-        print(data)
+# def test(i):
+#     global data
+#     return asyncio.run(run(i))
+# import json
+# if __name__ == '__main__':
+#     print(data)
+#     print(type(data))
+#     data = multiprocessing.Manager().list()
+#     print(type(data))
+#     with Pool(6) as p:
+#         print(p.map(test, [1, 2, 3,4,5,6]))
+#         print(data)

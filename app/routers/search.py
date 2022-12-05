@@ -21,7 +21,7 @@ async def get_quiz(sort:str='popular'):
 
 
 @router.get('/api/popularanswer',response_model=Response)
-async def popular_quiz(qid:int = 0):
+async def popular_answer(qid:int = 0):
     quiz_list = await pgsql.popular_answer(qid)
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 

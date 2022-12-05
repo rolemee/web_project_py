@@ -10,6 +10,19 @@ async def connect():
     global conn
     conn = await asyncpg.connect(user='rolemee', password='',
                                     database='web-project' ,host='127.0.0.1')
+async def start():
+    global conn
+    sql = 'truncate table web_project.answer,web_project.quiz,web_project."user";'
+    async with conn.transaction():
+        values = await conn.execute(
+            sql
+        )
+    sql = 'TRUNCATE web_project.quiz,web_project.answer,web_project."user" RESTART IDENTITY CASCADE;'
+    async with conn.transaction():
+        values = await conn.execute(
+            sql
+        )
+        
 async def insert_username(userId,username,password):
     global conn
     sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3);'
@@ -49,7 +62,7 @@ async def finish_set():
         values = await conn.fetch(
             sql
         )
-        conn.commitsql = """
+        sql = """
     select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz))
     """
     async with conn.transaction():
@@ -65,7 +78,7 @@ with open('data.json','r') as f:
 loop.run_until_complete(connect())
 qid = 1
 aid = 1
-
+loop.run_until_complete(start())
 for i in tqdm.tqdm(json_content):
 
     try:

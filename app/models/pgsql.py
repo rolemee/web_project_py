@@ -93,7 +93,7 @@ async def have_list_answer():
 async def popular_answer(qid:int):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select id,  (select username from web_project."user" u where u."userId"=quiz."userId") username , qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
+        sql = 'select id, (select username from web_project."user" u where u."userId"=quiz."userId") username , qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
         values = await connection.fetch(
             sql,qid
         )
@@ -223,3 +223,111 @@ async def remove_star(qid:int,userId:str):
             sql,userId,qid
         )
         return {'code':'200','message':'取消收藏成功','data':{}}
+
+@check_conn
+async def post_quiz(userId:str,title:str,content:str,keyWords:list):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''INSERT INTO web_project.quiz (qid, "userId", time, title, content, "keyWords", "like", dislike, max_like_reply_id,
+                ans_num, like_id, star_id)
+                VALUES (DEFAULT, $1::varchar(20), DEFAULT, $2::varchar(255), $3::text, $4, DEFAULT, DEFAULT, DEFAULT, DEFAULT,
+                DEFAULT, DEFAULT) RETURNING qid;
+        '''
+        values = await conn.fetch(
+            sql,userId,title,content,keyWords
+        )
+        return values[0].get('qid')
+
+@check_conn
+async def check_user(qid:int,table:str='quiz',id:str='qid'):
+    global pool
+    async with pool.acquire() as conn:
+        sql = f'''select "userId" from web_project.{table} where {id}=$1
+        '''
+        values = await conn.fetch(
+            sql,qid
+        )
+        return values[0].get('userId')
+
+@check_conn
+async def del_quiz(qid:int):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''DELETE
+            FROM web_project.answer
+            WHERE qid = $1::integer;
+        '''
+        values = await conn.fetch(
+            sql,qid
+        )
+        sql = '''DELETE
+            FROM web_project.quiz
+            WHERE qid = $1::integer;
+        '''
+        values = await conn.fetch(
+            sql,qid
+        )
+
+@check_conn
+async def star_quiz(userId:str):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,
+        time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz
+         where $1=any("star_id") order by time DESC;
+        '''
+        values = await conn.fetch(
+            sql,userId
+        )
+        return values
+@check_conn
+async def user_quiz(userId:str):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,
+        time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num,(select $1=any(like_id::text[])) is_like,(select $1=any(star_id::text[])) is_star from web_project.quiz
+         where "userId"=$1 order by time DESC;
+        '''
+        values = await conn.fetch(
+            sql,userId
+        )
+        return values
+
+@check_conn
+async def user_answer(userId:str):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''select id, (select username from web_project."user" u where u."userId"=answer."userId") username,
+        "userId" ,qid, time, content, "like", dislike,(select $1=any(like_id::text[])) is_like 
+        from web_project.answer where "userId"= $2 
+        '''
+        values = await conn.fetch(
+            sql,userId,userId
+        )
+        return values
+
+@check_conn
+async def post_answer(userId:str,content:str,qid:int):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''INSERT INTO web_project.answer (id, "userId", qid, time, content, "like", dislike, like_id)
+            VALUES (DEFAULT, $1::varchar(20), $2::integer, DEFAULT, $3::text, DEFAULT, DEFAULT, DEFAULT)
+            RETURNING ID;
+        '''
+        values = await conn.fetch(
+            sql,userId,qid,content
+            )
+        return values[0].get('id')
+
+
+@check_conn
+async def del_answer(aid:int):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''DELETE
+            FROM web_project.answer
+            WHERE id = $1::integer;
+        '''
+        values = await conn.fetch(
+            sql,aid
+        )
