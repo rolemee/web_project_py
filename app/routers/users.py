@@ -1,11 +1,13 @@
 from fastapi import Depends, FastAPI, APIRouter, Form
 from dependencies import *
 from models import pgsql, mlsearch
+from fastapi import FastAPI, File, UploadFile
 
+from fastapi.responses import HTMLResponse
+import hashlib
 
-import traceback
+import traceback,os
 router = APIRouter()
-
 @router.post('/api/register', response_model=Response)
 async def register(form_data: User): 
     if len(await pgsql.check_register(form_data.userId)) !=0:
@@ -30,6 +32,11 @@ async def login(form_data: User):
         data={"userId": form_data.userId, "rights":rights}, expires_delta=access_token_expires
     )
     return {'code':200,'message':'登陆成功','data':{'token':access_token}}
+
+@router.get('/api/selfinfo',response_model=Response)
+async def self_info(user:User=Depends(get_current_active_user)):
+    userId = user.get('userId')
+    return {'code':200,'message':'获取成功','data':{'info': (await pgsql.self_info(userId))[0]}}
 @router.get('/api/getuserinfo',response_model=Response)
 async def getUserInfo(user:User = Depends(get_current_active_user),sort:str='starquiz'):
     sort_list = ['starquiz','quiz','answer']
@@ -99,12 +106,65 @@ async def post_answer(user:User =Depends(get_current_active_user),content:str=Fo
 
 @router.post('/api/delanswer',response_model=Response)
 async def del_answer(user:User =Depends(get_current_active_user),aid:int=Form()):
-    # try:
+    try:
         userId = await pgsql.check_user(aid,'answer','id')
         if user.get('userId') != userId:
             return {'code':400,'message':'请勿违规操作','data':{}}
         await pgsql.del_answer(aid)
 
         return {'code':200,'message':'删除成功','data':{}}
-    # except:
-    #     return {'code':500,'message':'服务器错误','data':{}}
+    
+    except:
+        return {'code':500,'message':'服务器错误','data':{}}
+
+@router.post('/api/editpassword',response_model=Response)
+async def edit_password(user:User=Depends(get_current_active_user),oldpassword:str=Form(),newpassword:str=Form()):
+    if oldpassword =='' or newpassword =='':
+        raise ErrorOwn("请正确输入")
+    userId = user.get('userId')
+    res =await pgsql.login(userId)
+    if not await verify_password(oldpassword,res[0].get('password')):
+        return {'code':400,'message':'密码错误','data':{}}
+    await pgsql.edit_password(userId,pwd_context.encrypt(newpassword))
+    return {'code':200,'message':'修改密码成功','data':{}}
+@router.post('/api/edituserid',response_model=Response)
+async def edit_userId(user:User=Depends(get_current_active_user),newuserid:str=Form()):
+    if newuserid =='':
+        raise ErrorOwn("请正确输入")
+    try:
+        userId = user.get('userId')
+        await pgsql.edit_userId(userId,newuserId=newuserid)
+        return {'code':200,'message':'修改账号成功','data':{}}
+    except:
+        return {'code':400,'message':'用户存在','data':{}}
+
+
+
+@router.post("/api/uploadfile",response_model=Response)
+async def create_upload_file(file: Union[UploadFile, None] = None,user:User=Depends(get_current_active_user),type:str='image'):
+    type_list = ['image','avatar']
+    if type not in type_list:
+        raise ErrorOwn("请正确输入")
+    if not file:
+        return {"message": "No upload file sent"}
+    else:
+        filename = hashlib.sha256(file.filename.encode()).hexdigest()
+        if type == 'avatar':
+            filename = user.get('userId') + filename
+        with open('image/'+filename,'wb') as f:
+            f.write(file.file.read())
+        if type == 'avatar':
+            await pgsql.edit_avatar(userId=user.get("userId"),avatar_url='/image/'+filename)
+    return {'code':200,'message':'上传成功','data':{'imageurl':'/image/'+hashlib.sha256(file.filename.encode()).hexdigest()}}
+
+@router.get("/")
+async def main():
+    content = """
+        <body>
+        <form action="/api/uploadfile" enctype="multipart/form-data" method="post">
+        <input name="file" type="file" multiple>
+        <input type="submit">
+        </form>
+        </body>
+            """
+    return HTMLResponse(content=content)

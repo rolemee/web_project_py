@@ -61,31 +61,31 @@ async def jwt_get_info(userId:str):
         return values
 
 @check_conn
-async def popular_quiz():
+async def popular_quiz(limit:int,offset:int):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit 10;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit $1 offset $2;'
         values = await connection.fetch(
-            sql
+            sql,limit,offset
         )
         return values
 
 @check_conn
-async def no_answer_quiz():
+async def no_answer_quiz(limit:int,offset:int):
     global pool
     async with pool.acquire() as conn:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num=0 order by time DESC limit 10;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num=0 order by time DESC limit $1 offset $2;'
         values = await conn.fetch(
-            sql
+            sql,limit,offset
         )
         return values
 @check_conn
-async def have_list_answer():
+async def have_list_answer(limit:int,offset:int):
     global pool
     async with pool.acquire() as conn:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit 10;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit $1 offset $2;'
         values = await conn.fetch(
-            sql
+            sql,limit,offset
         )
         return values
 
@@ -93,12 +93,20 @@ async def have_list_answer():
 async def popular_answer(qid:int):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select id, (select username from web_project."user" u where u."userId"=quiz."userId") username , qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
+        sql = 'select id, (select username from web_project."user" u where u."userId"=answer."userId") username , qid, time, content,"like","dislike",("userId" =any("like_id")) is_like from web_project.answer where qid=$1 order by "like" DESC , dislike limit 1;'
         values = await connection.fetch(
             sql,qid
         )
         return values
-
+@check_conn
+async def quiz_time_desc(limit:int,offset:int):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit $1 offset $2;'
+        values = await connection.fetch(
+            sql,limit,offset
+        )
+        return values
 @check_conn
 async def quiz_info(qid:int,userId:str):
     global pool
@@ -331,3 +339,100 @@ async def del_answer(aid:int):
         values = await conn.fetch(
             sql,aid
         )
+
+@check_conn
+async def total_soveld():
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''select count(qid) count from web_project.quiz where ans_num !=0
+        '''
+        values = await conn.fetch(
+            sql
+        )
+    return values[0].get('count')
+
+@check_conn
+async def search_by_keyWords(keyWords:list,limit:int,offset:int,sort:str):
+    global pool
+
+    sql = '''
+        select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,time, 
+        title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num 
+        from web_project.quiz where time>now()-interval \'6 years\' and arraycontained($3,"keyWords") order by ans_num DESC,"like" DESC limit $1 offset $2;'''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,limit,offset,keyWords
+        )
+
+    return values
+
+@check_conn
+async def check_password(userId:str,password:str):
+    global pool
+
+    sql = '''
+        select "userId" from web_project."user" where "userId"=$1 and password=$2'''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,userId,password
+        )
+
+    return values
+
+@check_conn
+async def edit_password(userId:str,password:str):
+    global pool
+
+    sql = '''
+        UPDATE web_project."user"
+        SET password = $2::varchar(60)
+        WHERE "userId"=$1;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,userId,password
+        )
+
+    return values
+@check_conn
+async def edit_userId(olduserId:str,newuserId:str):
+    global pool
+    sql = '''
+        UPDATE web_project."user"
+        SET "userId" = $1::varchar(100),
+        username=$1::varchar(100)
+        WHERE "userId"=$2;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,newuserId,olduserId
+        )
+
+    return values
+@check_conn
+async def self_info(userId:str):
+    global pool
+
+    sql = '''
+        select "userId", rights, avatar  from web_project."user" where "userId"=$1;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,userId
+        )
+    return values
+
+@check_conn
+async def edit_avatar(userId:str,avatar_url:str):
+    global pool
+    sql = '''
+        UPDATE web_project."user"
+        SET "avatar" = $1::varchar(100)
+        WHERE "userId"=$2;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,avatar_url,userId
+        )
+
+    return values
