@@ -12,10 +12,11 @@ res_list = []
 # testnum = 1
 def connect():
     return psycopg2.connect(user='rolemee', password='',
-                                    dbname='web-project' ,host='127.0.0.1').cursor()
+                                    dbname='web-project' ,host='127.0.0.1')
 
 class Ask(object):
-    def __init__(self, questionTitle, userId, time, query_text, reply, keyWords):
+    def __init__(self,qid, questionTitle, userId, time, query_text, reply, keyWords):
+        self.id=qid
         self.questionTitle = questionTitle
         self.userId = userId
         self.time = time
@@ -41,8 +42,10 @@ re_get_tag = re.compile(',tags: \'(.*?)\'')
 answer_list = []
 sum = 0
 sum_total = 0
-def init(filename,user='jrm'):
-    conn = connect()
+
+def init(filename,user='alldata'):
+    connection = connect()
+    conn = connection.cursor()
     # sum_total.value +=1
     # if sum_total.value %100 == 0:
     #     print(sum_total.value)
@@ -71,18 +74,23 @@ def init(filename,user='jrm'):
                 ans_content = (re.findall(re_ans_content,f))
                 ask_tag = re.search(re_get_tag,f).group(1).split('_')
                 num = 0
-                sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3) ON CONFLICT "userId" DO NOTHING ;'
+                Time = ask_time
+                if ask_id == "":
+                    ask_id = "匿名用户"
+                if ask_time.find('-') ==-1:
+                    Time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(ask_time)))
+                sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES (%s, %s, %s) ON CONFLICT ("userId") DO NOTHING ;'
                 conn.execute(
-                        sql,ask_id,ask_id,'import_user'
+                        sql,(ask_id,ask_id,'import_user')
                     )
                 sql = '''INSERT INTO web_project.quiz ("userId", time, title, content, "keyWords", "like", dislike,
-                            max_like_reply_id, ans_num, like_id,star_id)
-                            VALUES ($1::varchar(20), $2::timestamp, $3::varchar(255), $4::text,
-                            $8 ,$5::integer, $6::integer, DEFAULT, $7::integer, DEFAULT,DEFAULT)'''
-                uf ask_time
-                conn.execute(
-                        sql,ask_id,ask_id,'import_user'
+                max_like_reply_id, ans_num, like_id,star_id)
+                VALUES (%s::varchar(100), %s::timestamp, %s::varchar(255), %s::text,
+                %s ,0::integer, 0::integer, DEFAULT, DEFAULT, DEFAULT,DEFAULT) RETURNING qid'''
+                qid = conn.execute(
+                        sql,(ask_id,Time,ask_title,ask_content,ask_tag)
                     )
+                qid = conn.fetchall()[0][0]
                 for j in range(len(ans_content)-len(ans_id),len(ans_id)):
                     temp = soup.find(attrs={'id': 'best-answer-'+str(ans_id[num])})
                     if temp is None:
@@ -115,32 +123,57 @@ def init(filename,user='jrm'):
                         rep_dislike = '0'
                     if rep_name == "":
                         rep_name = "匿名用户"
-                    answer_list.append(Reply(rep_name,rep_time,rep_content,rep_like,rep_dislike).__dict__)
-                    sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3) ON CONFLICT "userId" DO NOTHING ;'
+                    sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES (%s, %s, %s) ON CONFLICT ("userId") DO NOTHING ;'
                     conn.execute(
-                        sql,rep_name,rep_name,'import_user'
+                            sql,(rep_name,rep_name,'import_user')
+                        )
+                    answer_list.append(Reply(rep_name,rep_time,rep_content,rep_like,rep_dislike).__dict__)
+                    sql = '''INSERT INTO web_project.answer ("userId", qid, time, content, "like", dislike, like_id)
+                        VALUES (%s::varchar(100), %s::integer, %s::timestamp, %s::text, %s::integer,
+                        %s::integer, DEFAULT);
+                    '''
+                    conn.execute(
+                        sql,(rep_name,qid,Time,rep_content,rep_like,rep_dislike)
                     )
-                    conn.commit()
+                    
                     num+=1
-                if ask_id == "":
-                    ask_id = "匿名用户"
-                ask = Ask(ask_title,ask_id,ask_time,ask_content,answer_list,ask_tag)
+
+                ask = Ask(qid,ask_title,ask_id,ask_time,ask_content,answer_list,ask_tag)
                 res_list.append(ask.__dict__)
+                connection.commit()
                 conn.close()
     except:
         if f.find('知道宝贝找不到问题了') !=-1:
             return
         traceback.print_exc()
         print(filename)
-userlist = os.listdir('data/jrm/html/')
+
+connection = connect()
+conn = connection.cursor()
+conn.execute('''
+    truncate table web_project.answer,web_project.quiz,web_project."user";
+    TRUNCATE web_project.quiz,web_project.answer,web_project."user" RESTART IDENTITY CASCADE;
+''')
+connection.commit()
+userlist = os.listdir(f'data/alldata/html/')
 res_list = multiprocessing.Manager().list()
 sum_total = multiprocessing.Value('i',0)
 start_time = time.time()
+sum = 0
+# for i in tqdm.tqdm(userlist):
+#     init(i)
+#     if sum >=100:
+#         break
+#     sum+=1
 with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
-    for _ in tqdm.tqdm(p.imap(init, userlist),total=len(userlist)):
+    for _ in tqdm.tqdm(p.imap(init, (userlist)),total=len(userlist)):
         pass
 
-
-
+conn.execute('''
+    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
+    select setval('web_project.answer_id_seq',(select max(id) from web_project.answer))
+''')
+connection.commit()
+conn.close()
 with open('data.json','w') as f:
     f.write(json.dumps(list(res_list),ensure_ascii=False,indent=4))

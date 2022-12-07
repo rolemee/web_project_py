@@ -45,7 +45,7 @@
 import asyncio
 import os
 from meilisearch_python_async import Client
-from datetime import date
+from datetime import date,timedelta
 async def search(query_text:str = ""):
     async with Client('http://127.0.0.1:7700') as client:
         client =client.index('web_project') 
@@ -95,3 +95,12 @@ async def run(x):
 #     with Pool(6) as p:
 #         print(p.map(test, [1, 2, 3,4,5,6]))
 #         print(data)
+
+dict = {
+    "a":"1",
+    "b":"2"
+}
+
+
+if '1' in dict:
+    print(1123)

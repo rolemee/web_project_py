@@ -25,7 +25,7 @@ async def start():
         
 async def insert_username(userId,username,password):
     global conn
-    sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3);'
+    sql = 'INSERT INTO web_project."user" ("userId", username, password) VALUES ($1, $2, $3) ON CONFLICT ("userId") DO NOTHING ;'
     async with conn.transaction():
         values = await conn.execute(
             sql,userId,username,password
@@ -63,7 +63,45 @@ async def finish_set():
             sql
         )
         sql = """
-    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz))
+    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
+
+create function max_like_reply_id_fun() returns trigger
+    language plpgsql
+as
+$$
+   BEGIN
+      update web_project.quiz set max_like_reply_id=(select "id" from web_project.answer where qid=new.qid order by "like" DESC limit 1 ) where qid=new.qid;
+      return new;
+   END
+$$;
+
+alter function max_like_reply_id_fun() owner to rolemee;
+
+create trigger max_like_count
+    after insert or update
+        of "like"
+    on answer
+    for each row
+execute procedure max_like_reply_id_fun();
+create function sum_reply() returns trigger
+    language plpgsql
+as
+$$
+    BEGIN
+        UPDATE web_project.quiz set ans_num = (select count(id) from web_project.answer where answer.qid=new.qid) where qid=new.qid;
+        RETURN new;
+    end;
+    $$;
+
+alter function sum_reply() owner to rolemee;
+
+create trigger ans_sum_t
+    after insert
+    on answer
+    for each row
+execute procedure sum_reply();
+
+
     """
     async with conn.transaction():
         values = await conn.fetch(
@@ -80,13 +118,7 @@ qid = 1
 aid = 1
 loop.run_until_complete(start())
 for i in tqdm.tqdm(json_content):
-
-    try:
-        loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
-    except:
-        # traceback.print_exc()
-        # print()
-        pass
+    loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
     try:
         Time = i['time']
         if i['time'].find('-') ==-1:
@@ -94,7 +126,7 @@ for i in tqdm.tqdm(json_content):
         try:
             loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
         except:
-            time.sleep(0.01)
+            loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
             loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
         qid+=1
         if len(i['reply']) == 0:
@@ -105,12 +137,9 @@ for i in tqdm.tqdm(json_content):
         pass
     for j in i['reply']:
         
-        try:
-            loop.run_until_complete(insert_username(j['userId'],j['userId'],"imported_user"))
-        except:
-            # traceback.print_exc()
-            # print()
-            pass
+
+        loop.run_until_complete(insert_username(j['userId'],j['userId'],"imported_user"))
+
         try:
 
             Time = j['time']
@@ -122,12 +151,13 @@ for i in tqdm.tqdm(json_content):
                 try:
                     loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
                 except:
-                    time.sleep(0.01)
+                    loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
+                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
             else:
                 try:
                     loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
                 except:
-                    time.sleep(0.01)
+                    loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
                     loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
             aid+=1
         except:

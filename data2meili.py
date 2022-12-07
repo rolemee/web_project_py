@@ -9,7 +9,7 @@ meili_json_list = []
 num = 1
 for i in tqdm.tqdm(json_data):
     meili_json_list.append({
-        "id": num,
+        "id": i['id'],
         "title":i['questionTitle'],
         'title_pinyin': ''.join(lazy_pinyin(i['questionTitle'])),
         'title_pinyin_space': ' '.join(lazy_pinyin(i['questionTitle'])),

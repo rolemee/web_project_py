@@ -61,7 +61,7 @@ async def jwt_get_info(userId:str):
         return values
 
 @check_conn
-async def popular_quiz(limit:int,offset:int):
+async def popular_quiz(limit:int,offset:int,start_time:date,end_time:date):
     global pool
     async with pool.acquire() as connection:
         sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>now()-interval \'6 years\' order by ans_num DESC,"like" DESC limit $1 offset $2;'
@@ -71,24 +71,32 @@ async def popular_quiz(limit:int,offset:int):
         return values
 
 @check_conn
-async def no_answer_quiz(limit:int,offset:int):
+async def no_answer_quiz(limit:int,offset:int,start_time:date,end_time:date):
     global pool
     async with pool.acquire() as conn:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num=0 order by time DESC limit $1 offset $2;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num=0  and time >$3 and time < $4 order by time DESC limit $1 offset $2;'
         values = await conn.fetch(
-            sql,limit,offset
+            sql,limit,offset,start_time,end_time
         )
         return values
 @check_conn
-async def have_list_answer(limit:int,offset:int):
+async def have_list_answer(limit:int,offset:int,start_time:date,end_time:date):
     global pool
     async with pool.acquire() as conn:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit $1 offset $2;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 and time >$3 and time <$4 order by time DESC limit $1 offset $2;'
         values = await conn.fetch(
-            sql,limit,offset
+            sql,limit,offset,start_time,end_time
         )
         return values
-
+@check_conn
+async def have_list_answer_sort(limit:int,offset:int,start_time:date,end_time:date):
+    global pool
+    async with pool.acquire() as conn:
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 and time >$3 and time <$4 order by ans_num DESC limit $1 offset $2;'
+        values = await conn.fetch(
+            sql,limit,offset,start_time,end_time
+        )
+        return values
 @check_conn
 async def popular_answer(qid:int):
     global pool
@@ -99,12 +107,12 @@ async def popular_answer(qid:int):
         )
         return values
 @check_conn
-async def quiz_time_desc(limit:int,offset:int):
+async def quiz_time(limit:int,offset:int,start_time:str,end_time:str):
     global pool
     async with pool.acquire() as connection:
-        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where ans_num!=0 order by time DESC limit $1 offset $2;'
+        sql = 'select qid, (select username from web_project."user" u where u."userId"=quiz."userId") username ,time, title, content, "keyWords", "like", dislike, max_like_reply_id, ans_num from web_project.quiz where time>$3 and time < $4 order by ans_num DESC limit $1 offset $2;'
         values = await connection.fetch(
-            sql,limit,offset
+            sql,limit,offset,start_time,end_time
         )
         return values
 @check_conn
@@ -327,7 +335,16 @@ async def post_answer(userId:str,content:str,qid:int):
             )
         return values[0].get('id')
 
-
+@check_conn
+async def get_star_id(qid:int):
+    global pool
+    async with pool.acquire() as conn:
+        sql = '''SELECT star_id,title from  web_project.quiz WHERE "qid"=$1
+        '''
+        values = await conn.fetch(
+            sql,qid
+            )
+        return values[0].get('star_id'),values[0].get('title')
 @check_conn
 async def del_answer(aid:int):
     global pool

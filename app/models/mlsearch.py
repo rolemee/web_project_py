@@ -2,7 +2,7 @@ import os
 from meilisearch_python_async import Client
 from models import pgsql
 from pypinyin import pinyin, lazy_pinyin, Style
-from datetime import date
+from datetime import date,timedelta
 async def search(start_time:date,end_time:date,query_text:str = "", offset:int = 0,limit:int = 10):
     async with Client('http://127.0.0.1:7700') as client:
         client =client.index('web_project') 
@@ -11,7 +11,7 @@ async def search(start_time:date,end_time:date,query_text:str = "", offset:int =
         search_time = res.processing_time_ms
         totle_num = res.estimated_total_hits
         res = await pgsql.search(start_time,end_time,qid_list)
-        if start_time != date(1970,1,1) or end_time != date(date.today().year,date.today().month,date.today().day):
+        if start_time != date(1970,1,1) or end_time != date(date.today().year,date.today().month,date.today().day) + timedelta(days=1):
             totle_num = len(res)
         return res,search_time,totle_num
 
