@@ -2,23 +2,23 @@ from fastapi import Depends, FastAPI, APIRouter, Request
 from dependencies import *
 from models import pgsql
 from models import mlsearch
-from datetime import datetime,date
+from datetime import datetime,date,timedelta
 import traceback
 router = APIRouter()
 
 @router.get('/api/getquiz', response_model=Response)
-async def get_quiz(sort:str='popular',limit:int=10,offset:int=0):
-    sort_list = ['popular','noanswer','haveanswer',"timedesc"]
+async def get_quiz(sort:str='popular',limit:int=10,offset:int=0,start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day)+timedelta(days=1)):
+    sort_list = ['popular','noanswer','haveanswer','haveanswersort']
     if sort not in sort_list:
         raise ErrorOwn("请正确输入",408)
     if sort == 'popular':
-        quiz_list = await pgsql.popular_quiz(limit,offset)
+        quiz_list = await pgsql.popular_quiz(limit,offset,start_time,end_time)
     elif sort == 'noanswer':
-        quiz_list = await pgsql.no_answer_quiz(limit,offset)
+        quiz_list = await pgsql.no_answer_quiz(limit,offset,start_time,end_time)
     elif sort == 'haveanswer':
-        quiz_list = await pgsql.have_list_answer(limit,offset)
-    elif sort == 'timedesc':
-        quiz_list = await pgsql.quiz_time_desc(limit,offset)
+        quiz_list = await pgsql.have_list_answer(limit,offset,start_time,end_time)
+    elif sort == 'haveanswersort':
+        quiz_list = await pgsql.have_list_answer_sort(limit,offset,start_time,end_time)
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 
@@ -28,7 +28,7 @@ async def popular_answer(qid:int = 0):
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 @router.get('/api/search',response_model=Response)
-async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day),offset:int = 0,limit:int = 10):
+async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day)+timedelta(days=1),offset:int = 0,limit:int = 10):
     quiz_list,search_time,total_num = await mlsearch.search(start_time,end_time,query_text=q,offset=offset,limit=limit)
     try:
         return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list,'search_time':str(search_time)+'ms','total_num':total_num}}

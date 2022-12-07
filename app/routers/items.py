@@ -23,13 +23,9 @@ html = """
         <script>
             var client_id = Date.now()
             document.querySelector("#ws-id").textContent = client_id;
-            var ws = new WebSocket(`ws://192.168.4.191:8001/ws/${client_id}`);
+            var ws = new WebSocket(`ws://192.168.0.222:8001/ws/${client_id}`);
             ws.onmessage = function(event) {
-                var messages = document.getElementById('messages')
-                var message = document.createElement('li')
-                var content = document.createTextNode(event.data)
-                message.appendChild(content)
-                messages.appendChild(message)
+                alert(event.data)
             };
             function sendMessage(event) {
                 var input = document.getElementById("messageText")
@@ -67,6 +63,7 @@ manager = ConnectionManager()
 
 @app.get("/")
 async def get():
+    print(2)
     return HTMLResponse(html)
 
 @app.get('/test/{client_id}')
@@ -75,9 +72,11 @@ async def test(client_id:str):
     return ""
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
+    print('1')
     await manager.connect(websocket,str(client_id))
     try:
         while True:
+            print(client_id)
             data = await websocket.receive_text()
             await manager.send_personal_message(f"You wrote: {data}", websocket)
             await manager.broadcast(f"Client #{client_id} says: {data}")
@@ -86,5 +85,5 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         await manager.broadcast(f"Client #{client_id} left the chat")
 
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8001)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8001)

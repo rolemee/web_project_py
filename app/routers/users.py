@@ -1,35 +1,56 @@
-from fastapi import Depends, FastAPI, APIRouter, Form
+from fastapi import Depends, APIRouter, Form
 from dependencies import *
 from models import pgsql, mlsearch
-from fastapi import FastAPI, File, UploadFile
-
+from fastapi import File, UploadFile
+from typing import List
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 import hashlib
 
 import traceback,os
 router = APIRouter()
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+        self.active_connections_dict: dict = {}
+    async def connect(self, websocket: WebSocket,userId:str='jrm'):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        self.active_connections_dict[userId] = websocket
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+            
+
+manager = ConnectionManager()
 @router.post('/api/register', response_model=Response)
-async def register(form_data: User): 
-    if len(await pgsql.check_register(form_data.userId)) !=0:
+async def register(userId=Form(),username=Form(),password=Form()): 
+    if len(await pgsql.check_register(userId)) !=0:
         return {'code':401,'message':'当前用户Id已存在','data':{}}
     try:
-        await pgsql.register(form_data.userId,form_data.username,form_data.password)
-        return {'code':200,'message':'注册成功','data':{'userId':form_data.userId, 'username':form_data.username}}
+        await pgsql.register(userId,username,password)
+        return {'code':200,'message':'注册成功','data':{'userId':userId, 'username':username}}
     except:
         traceback.print_exc()
         return {'code':500,'message':'未知错误！','data':{}}
 @router.post('/api/login', response_model=Response)
-async def login(form_data: User):
-    res =await pgsql.login(form_data.userId)
+async def login(userId=Form(),password=Form()):
+    res =await pgsql.login(userId)
     if len(res) == 0:
         return {'code':401,'message':'当前用户或密码错误','data':{}}
-    password = res[0].get('password')
+    password_hashed = res[0].get('password')
     rights = res[0].get('rights')
-    if not await verify_password(form_data.password, password):
+    if not await verify_password(password, password_hashed):
         return {'code':401,'message':'当前用户或密码错误','data':{}}
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"userId": form_data.userId, "rights":rights}, expires_delta=access_token_expires
+        data={"userId": userId, "rights":rights}, expires_delta=access_token_expires
     )
     return {'code':200,'message':'登陆成功','data':{'token':access_token}}
 
@@ -100,7 +121,11 @@ async def del_quiz(user:User =Depends(get_current_active_user),qid:int=Form()):
 async def post_answer(user:User =Depends(get_current_active_user),content:str=Form(),qid:int=Form()):
     try:
         aid = await pgsql.post_answer(user.get('userId'),content,qid)
-        return {'code':200,'message':'发表问题成功','data':{"aid":aid}}
+        star_list,title = await pgsql.get_star_id(qid)
+        for i in star_list:
+            if i in manager.active_connections_dict and i != user.get('userId'):
+                await manager.active_connections_dict[i].send_json({"info":user.get("userId")+"回答了您关注的问题，快去看看吧。",'qid':qid,'title':title,'content':content})
+        return {'code':200,'message':'发表回答成功','data':{"aid":aid}}
     except:
         return {'code':500,'message':'服务器错误','data':{}}
 
@@ -157,14 +182,15 @@ async def create_upload_file(file: Union[UploadFile, None] = None,user:User=Depe
             await pgsql.edit_avatar(userId=user.get("userId"),avatar_url='/image/'+filename)
     return {'code':200,'message':'上传成功','data':{'imageurl':'/image/'+hashlib.sha256(file.filename.encode()).hexdigest()}}
 
-@router.get("/")
-async def main():
-    content = """
-        <body>
-        <form action="/api/uploadfile" enctype="multipart/form-data" method="post">
-        <input name="file" type="file" multiple>
-        <input type="submit">
-        </form>
-        </body>
-            """
-    return HTMLResponse(content=content)
+@router.websocket("/ws/{userId}")
+async def websocket_endpoint(websocket: WebSocket, userId: str):
+    await manager.connect(websocket,str(userId))
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# @router.get("/test/{userId}")
+# async def test(userId: str):
+#     await manager.active_connections_dict[userId].send_text('我是'+userId)
