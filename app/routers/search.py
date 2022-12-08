@@ -4,21 +4,31 @@ from models import pgsql
 from models import mlsearch
 from datetime import datetime,date,timedelta
 import traceback
+
+
+import asyncio
 router = APIRouter()
 
 @router.get('/api/getquiz', response_model=Response)
-async def get_quiz(sort:str='popular',limit:int=10,offset:int=0,start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day)+timedelta(days=1)):
-    sort_list = ['popular','noanswer','haveanswer','haveanswersort']
+async def get_quiz(request:Request,sort:str='popular',limit:int=10,offset:int=0,start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day),userId:str=''):
+    sort_list = ['popular','noanswer','haveanswer','haveanswersort','timedesc']
+    if userId != "":
+        token = OAuth2PasswordBearer('token')
+        token = await token(request)
+        userId = (await get_current_user(token=token)).get('userId')
+    end_time += timedelta(days=1)
     if sort not in sort_list:
         raise ErrorOwn("请正确输入",408)
     if sort == 'popular':
-        quiz_list = await pgsql.popular_quiz(limit,offset,start_time,end_time)
+        quiz_list = await pgsql.popular_quiz(limit,offset,start_time,end_time,userId)
     elif sort == 'noanswer':
-        quiz_list = await pgsql.no_answer_quiz(limit,offset,start_time,end_time)
+        quiz_list = await pgsql.no_answer_quiz(limit,offset,start_time,end_time,userId)
     elif sort == 'haveanswer':
-        quiz_list = await pgsql.have_list_answer(limit,offset,start_time,end_time)
+        quiz_list = await pgsql.have_list_answer(limit,offset,start_time,end_time,userId)
     elif sort == 'haveanswersort':
-        quiz_list = await pgsql.have_list_answer_sort(limit,offset,start_time,end_time)
+        quiz_list = await pgsql.have_list_answer_sort(limit,offset,start_time,end_time,userId)
+    elif sort == 'timedesc':
+        quiz_list = await pgsql.timedesc(limit,offset,start_time,end_time,userId)
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 
@@ -28,8 +38,13 @@ async def popular_answer(qid:int = 0):
     return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list}}
 
 @router.get('/api/search',response_model=Response)
-async def search(q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day)+timedelta(days=1),offset:int = 0,limit:int = 10):
-    quiz_list,search_time,total_num = await mlsearch.search(start_time,end_time,query_text=q,offset=offset,limit=limit)
+async def search(request:Request,q:str = '', start_time:date=date(1970,1,1),end_time:date=date(date.today().year,date.today().month,date.today().day),offset:int = 0,limit:int = 10,userId:str=''):
+    if userId != "":
+        token = OAuth2PasswordBearer('token')
+        token = await token(request)
+        userId = (await get_current_user(token=token)).get('userId')
+    end_time += timedelta(days=1)
+    quiz_list,search_time,total_num = await mlsearch.search(start_time,end_time,query_text=q,offset=offset,limit=limit,userId=userId)
     try:
         return {'code':200,'message':'查询成功','data':{'quiz_list':quiz_list,'search_time':str(search_time)+'ms','total_num':total_num}}
     except:
@@ -78,12 +93,18 @@ async def search_answer(model:str='soveld'):
         return {'code':200,'message':'查询成功','data':{'sum':await pgsql.total_soveld()}}
 
 @router.get('/api/searchkeywords',response_model=Response)
-async def search_by_keyWords(keywords:str='',limit:int=10,offset:int=0,sort:str='popular'):
+async def search_by_keyWords(request:Request, keywords:str='',limit:int=10,offset:int=0,sort:str='popular',userId:str=''):
+    if userId != "":
+        token = OAuth2PasswordBearer('token')
+        token = await token(request)
+        userId = (await get_current_user(token=token)).get('userId')
     sort_list = ['popular']
     if sort not in sort_list:
         raise ErrorOwn("请正确输入",408)
-    values = await pgsql.search_by_keyWords(keyWords=keywords.split(','),limit=limit,offset=offset,sort=sort)
+    values = await pgsql.search_by_keyWords(keyWords=keywords.split(','),limit=limit,offset=offset,sort=sort,userId=userId)
     return  {'code':200,'message':'查询成功','data':{'quiz_list':values}}
+import random
+a = random.randint(1,3000)
 @router.get('/abtest')
-async def abtest():
+async def abtest(request:Request):
     return ''

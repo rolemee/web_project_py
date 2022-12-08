@@ -9,7 +9,7 @@ app = FastAPI()
 app.include_router(users.router)
 app.include_router(search.router)
 app.add_exception_handler(dependencies.ErrorOwn,dependencies.unicorn_exception_handler)
-# app.mount("/image", StaticFiles(directory="image"), name="image")
+app.mount("/image", StaticFiles(directory="image"), name="image")
 # app.exception_handler(dependencies.UnicornException)
 
 if __name__ == "__main__":

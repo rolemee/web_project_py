@@ -95,12 +95,3 @@ async def run(x):
 #     with Pool(6) as p:
 #         print(p.map(test, [1, 2, 3,4,5,6]))
 #         print(data)
-
-dict = {
-    "a":"1",
-    "b":"2"
-}
-
-
-if '1' in dict:
-    print(1123)

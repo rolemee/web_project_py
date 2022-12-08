@@ -26,8 +26,10 @@ create table "user"
     username varchar(100)      not null,
     password varchar(60)       not null,
     rights   integer default 0 not null
-        constraint user_rights_rightsid_fk
-            references rights
+                constraint user_rights_rightsid_fk
+            references rights,
+    avatar  varchar(100) default '/image/avatar.png'
+
 );
 
 alter table "user"
@@ -109,7 +111,7 @@ create function sum_reply() returns trigger
 as
 $$
     BEGIN
-        UPDATE web_project.quiz set ans_num = (select count(id) from web_project.answer where answer.qid=new.qid) where qid=new.qid;
+        UPDATE web_project.quiz set ans_num = (select count(id) from web_project.answer where answer.qid=old.qid) where qid=old.qid;
         RETURN new;
     end;
     $$;
@@ -117,7 +119,7 @@ $$
 alter function sum_reply() owner to rolemee;
 
 create trigger ans_sum_t
-    after insert
+    after insert OR DELETE
     on answer
     for each row
 execute procedure sum_reply();

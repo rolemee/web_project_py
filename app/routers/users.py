@@ -124,7 +124,7 @@ async def post_answer(user:User =Depends(get_current_active_user),content:str=Fo
         star_list,title = await pgsql.get_star_id(qid)
         for i in star_list:
             if i in manager.active_connections_dict and i != user.get('userId'):
-                await manager.active_connections_dict[i].send_json({"info":user.get("userId")+"回答了您关注的问题，快去看看吧。",'qid':qid,'title':title,'content':content})
+                await manager.active_connections_dict[i].send_text("您关注的问题:“"+title+"“有新的回答了，快去看看吧。")
         return {'code':200,'message':'发表回答成功','data':{"aid":aid}}
     except:
         return {'code':500,'message':'服务器错误','data':{}}

@@ -67,7 +67,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def unicorn_exception_handler(request: Request, exc: ErrorOwn):
     return JSONResponse(
         status_code=exc.status_code,
-        content={'code':exc.status_code,'massage':exc.msg,'data':{}},
+        content={'code':exc.status_code,'message':exc.msg,'data':{}},
     )
 
 async def verify_password(plain_password, hashed_password):
