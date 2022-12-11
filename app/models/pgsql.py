@@ -357,12 +357,12 @@ async def post_answer(userId:str,content:str,qid:int):
 async def get_star_id(qid:int):
     global pool
     async with pool.acquire() as conn:
-        sql = '''SELECT star_id,title from  web_project.quiz WHERE "qid"=$1
+        sql = '''SELECT star_id,title,"userId" from  web_project.quiz WHERE "qid"=$1
         '''
         values = await conn.fetch(
             sql,qid
             )
-        return values[0].get('star_id'),values[0].get('title')
+        return values[0].get('star_id'),values[0].get('title'),values[0].get('userId')
 @check_conn
 async def del_answer(aid:int):
     global pool
@@ -466,8 +466,7 @@ async def edit_avatar(userId:str,avatar_url:str):
         WHERE "userId"=$2;
         '''
     async with pool.acquire() as conn:
-        values = await conn.fetch(
+        values = await conn.execute(
             sql,avatar_url,userId
         )
-
     return values

@@ -121,14 +121,20 @@ async def del_quiz(user:User =Depends(get_current_active_user),qid:int=Form()):
 async def post_answer(user:User =Depends(get_current_active_user),content:str=Form(),qid:int=Form()):
     try:
         aid = await pgsql.post_answer(user.get('userId'),content,qid)
-        star_list,title = await pgsql.get_star_id(qid)
+        star_list,title,userId = await pgsql.get_star_id(qid)
+    except:
+        traceback.print_exc()
+        return {'code':500,'message':'服务器错误','data':{}}
+    try:
         for i in star_list:
             if i in manager.active_connections_dict and i != user.get('userId'):
                 await manager.active_connections_dict[i].send_text("您关注的问题:“"+title+"“有新的回答了，快去看看吧。")
-        return {'code':200,'message':'发表回答成功','data':{"aid":aid}}
+        if userId in manager.active_connections_dict and user.get('userId') != userId:
+            await manager.active_connections_dict[userId].send_text("您发表的问题:“"+title+"“有新的回答了，快去看看吧。")
     except:
-        return {'code':500,'message':'服务器错误','data':{}}
-
+        pass
+    return {'code':200,'message':'发表回答成功','data':{"aid":aid}}
+    
 @router.post('/api/delanswer',response_model=Response)
 async def del_answer(user:User =Depends(get_current_active_user),aid:int=Form()):
     try:
@@ -179,8 +185,9 @@ async def create_upload_file(file: Union[UploadFile, None] = None,user:User=Depe
         with open('image/'+filename,'wb') as f:
             f.write(file.file.read())
         if type == 'avatar':
+
             await pgsql.edit_avatar(userId=user.get("userId"),avatar_url='/image/'+filename)
-    return {'code':200,'message':'上传成功','data':{'imageurl':'/image/'+hashlib.sha256(file.filename.encode()).hexdigest()}}
+    return {'code':200,'message':'上传成功','data':{'imageurl':'/image/'+filename}}
 
 @router.websocket("/ws/{userId}")
 async def websocket_endpoint(websocket: WebSocket, userId: str):

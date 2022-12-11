@@ -105,6 +105,10 @@ async def search_by_keyWords(request:Request, keywords:str='',limit:int=10,offse
     return  {'code':200,'message':'查询成功','data':{'quiz_list':values}}
 import random
 a = random.randint(1,3000)
+import hashlib
 @router.get('/abtest')
 async def abtest(request:Request):
+    a = ''
+    for i in range(100):
+        a +=hashlib.sha512(b'qwertyuioa'*1000).hexdigest()
     return ''
