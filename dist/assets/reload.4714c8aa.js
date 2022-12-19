@@ -1,0 +1,1 @@
+import{Y as o,S as s,o as t,z as a}from"./index.ff4df269.js";import{b as e}from"./route-block.89f12ae7.js";const f={__name:"reload",setup(e){const f=o();return s((()=>{f.go(-1)})),(o,s)=>(t(),a("div"))}};"function"==typeof e&&e(f);export{f as default};
