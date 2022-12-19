@@ -35,6 +35,9 @@ python data2meili.py
 ```
 
 ## 四.启动
+``` bash
+cd app
+```
 测试环境
 ``` bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -44,3 +47,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 uvicorn main:app --host 0.0.0.0 --port 8000 --log-level error --workers 16
 ```
 `--workers` 参数根据自己的cpu自行调整
+
+
+## 五.注意事项
+如果要部署到其他网络，需要修改前端的`web_front/.env.development`和`web_front/.env.production`文件中的`VITE_APP_API_BASEURL`。末尾一定要加上/
+同时需要安装pnpm（自行安装）
+```bash
+pnpm install package.json
+```
+``` bash
+pnpm run build
+```
+```bash
+cp -r web_front/dist ./
+```
