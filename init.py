@@ -8,8 +8,8 @@ import asyncpg
 global conn
 async def connect():
     global conn
-    conn = await asyncpg.connect(user='rolemee', password='',
-                                    database='web-project' ,host='127.0.0.1')
+    conn = await asyncpg.connect(user='postgres', password='root',
+                                    database='postgres' ,host='127.0.0.1')
 async def start():
     global conn
     sql = 'truncate table web_project.answer,web_project.quiz,web_project."user";'
@@ -62,10 +62,16 @@ async def finish_set():
         values = await conn.fetch(
             sql
         )
-        sql = """
-    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
 
-create function max_like_reply_id_fun() returns trigger
+    sql = """
+    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
+
+    sql="""
+    create or replace  function max_like_reply_id_fun() returns trigger
     language plpgsql
 as
 $$
@@ -73,17 +79,34 @@ $$
       update web_project.quiz set max_like_reply_id=(select "id" from web_project.answer where qid=new.qid order by "like" DESC limit 1 ) where qid=new.qid;
       return new;
    END
-$$;
+$$;"""
+    async with conn.transaction():
+            values = await conn.fetch(
+                sql
+            )
 
-alter function max_like_reply_id_fun() owner to rolemee;
+    sql="""
+alter function max_like_reply_id_fun() owner to postgres;"""
+    async with conn.transaction():
+            values = await conn.fetch(
+                sql
+            )
 
-create trigger max_like_count
+    sql="""
+create or replace  trigger max_like_count
     after insert or update
         of "like"
-    on answer
+    on web_project.answer
     for each row
 execute procedure max_like_reply_id_fun();
-create function sum_reply() returns trigger
+"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
+
+    sql="""
+create or replace  function sum_reply() returns trigger
     language plpgsql
 as
 $$
@@ -91,13 +114,21 @@ $$
         UPDATE web_project.quiz set ans_num = (select count(id) from web_project.answer where answer.qid=new.qid) where qid=new.qid;
         RETURN new;
     end;
-    $$;
+    $$;"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
 
-alter function sum_reply() owner to rolemee;
+    sql="""alter function sum_reply() owner to postgres;"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
 
-create trigger ans_sum_t
+    sql="""create or replace  trigger ans_sum_t
     after insert
-    on answer
+    on web_project.answer
     for each row
 execute procedure sum_reply();
 
@@ -111,7 +142,7 @@ loop = asyncio.get_event_loop()
 
 import traceback
 from datetime import datetime
-with open('data.json','r') as f:
+with open('data.json','r',encoding='utf-8') as f:
     json_content = json.load(f)
 loop.run_until_complete(connect())
 qid = 1

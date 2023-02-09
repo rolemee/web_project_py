@@ -1,0 +1,1 @@
+function n(n){return null==n}class t extends Error{constructor(n){super(n),this.name="ElementPlusError"}}function e(n,e){throw new t(`[${n}] ${e}`)}function r(n,t){}const s="update:modelValue",o="change";export{o as C,s as U,r as d,n as i,e as t};
