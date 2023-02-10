@@ -24,7 +24,6 @@ let constantRoutes = [
     }
 ]
 
-import HomePage from './modules/home.page'
 // 系统路由
 let systemRoutes = [
     {
@@ -109,19 +108,21 @@ let systemRoutes = [
                 }
             }
         ]
-    },
-    HomePage
+    }
 ]
 
 import Search from './modules/search'
 import FindPage from '@/router/modules/find.page'
+import HomePage from './modules/home.page'
+import LogView from '@/router/modules/log.view'
 
 // 动态路由（异步路由、导航栏路由）
 let asyncRoutes = [
     {
         meta: {
             title: '首页',
-            icon: 'sidebar-default'
+            icon: 'sidebar-default',
+            auth: [0, 1]
         },
         children: [
             HomePage
@@ -130,7 +131,8 @@ let asyncRoutes = [
     {
         meta: {
             title: '搜一搜',
-            icon: 'ep:search'
+            icon: 'ep:search',
+            auth: [0, 1]
         },
         children: [
             Search
@@ -139,10 +141,21 @@ let asyncRoutes = [
     {
         meta: {
             title: '发现',
-            icon: 'eye-open'
+            icon: 'eye-open',
+            auth: [0, 1]
         },
         children: [
             FindPage
+        ]
+    },
+    {
+        meta: {
+            title: '日志',
+            icon: 'ep:setting',
+            auth: [1]
+        },
+        children: [
+            LogView
         ]
     }
 ]

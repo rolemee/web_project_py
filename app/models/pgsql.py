@@ -20,8 +20,8 @@ async def init():
     global pool
     async with lock:
         if pool is None:
-            pool = await asyncpg.create_pool(user='postgres', password='root',
-                database='postgres' ,host='127.0.0.1',max_size=30)
+            pool = await asyncpg.create_pool(user='rolemee', password='',
+                database='web-project' ,host='127.0.0.1',max_size=30)
 @check_conn
 async def check_register(userId:str):
     global pool

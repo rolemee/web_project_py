@@ -2,7 +2,7 @@
 
 --DROP TABLE user_log;
 
---建日志表
+-- 建日志表
 CREATE TABLE
     user_log(
         log_date TIMESTAMP not NULL,

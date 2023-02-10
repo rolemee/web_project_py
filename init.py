@@ -8,8 +8,8 @@ import asyncpg
 global conn
 async def connect():
     global conn
-    conn = await asyncpg.connect(user='postgres', password='root',
-                                    database='postgres' ,host='127.0.0.1')
+    conn = await asyncpg.connect(user='rolemee', password='',
+                                    database='web-project' ,host='127.0.0.1')
 async def start():
     global conn
     sql = 'truncate table web_project.answer,web_project.quiz,web_project."user";'

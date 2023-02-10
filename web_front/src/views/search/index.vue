@@ -414,7 +414,7 @@ function showTop() {
     z-index: 0;
     width: 100%;
     height: 100%;
-    background-image: url("../../assets/images/background.jpg");
+    background-image: url("../../assets/images/background.jfif");
     background-size: cover;
     background-position: center center;
     font-family: "Microsoft Yahei Light","Microsoft Yahei","PingFang SC","Helvetica Neue",Helvetica,Tahoma,Arial,sans-serif;

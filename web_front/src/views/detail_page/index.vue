@@ -238,6 +238,18 @@ function getMoreList() {
         data.value.loading = false
     })
 }
+// 分享
+function onShare() {
+    let path = import.meta.env.VITE_APP_API_BASEURL + route.path
+    let input = document.createElement('input')
+    input.setAttribute('readonly', 'readonly')
+    input.value = path // 设置内容
+    document.body.appendChild(input) // 添加临时实例
+    input.select() // 选择实例内容
+    document.execCommand('Copy') // 执行复制
+    document.body.removeChild(input) // 删除临时实例
+    ElMessage.success('复制链接成功，快去分享')
+}
 </script>
 <template>
     <div v-loading="data.loading">
@@ -355,7 +367,7 @@ function getMoreList() {
                                 {{ !commentShow ? data.commentNumber+"条评论" : '收起评论' }}
                             </span>
                         </div>
-                        <div class="icon-box">
+                        <div class="icon-box" @click="onShare">
                             <el-icon class="icon">
                                 <svg-icon name="ep:promotion" />
                             </el-icon>

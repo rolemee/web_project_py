@@ -1,6 +1,40 @@
 import { deepClone, resolveRoutePath } from '@/util'
 import { systemRoutes } from '@/router/routes'
 import useSettingsStore from './settings'
+import useUserStore from './user'
+
+function hasPermission(permissions, route) {
+    let isAuth = false
+    if (route.meta && route.meta.auth) {
+        isAuth = permissions.some(auth => {
+            if (typeof route.meta.auth == 'string') {
+                return route.meta.auth === auth
+            } else {
+                return route.meta.auth.some(routeAuth => {
+                    return routeAuth === auth
+                })
+            }
+        })
+    } else {
+        isAuth = true
+    }
+    return isAuth
+}
+function filterAsyncRoutes(routes, permissions) {
+    const res = []
+    routes.forEach(route => {
+        let tmpRoute = deepClone(route)
+        if (hasPermission(permissions, tmpRoute)) {
+            if (tmpRoute.children) {
+                tmpRoute.children = filterAsyncRoutes(tmpRoute.children, permissions)
+                tmpRoute.children.length && res.push(tmpRoute)
+            } else {
+                res.push(tmpRoute)
+            }
+        }
+    })
+    return res
+}
 
 // 将多层嵌套路由处理成两层，保留顶层和最子层路由，中间层级将被拍平
 function flatAsyncRoutes(routes) {
@@ -99,8 +133,10 @@ const useRouteStore = defineStore(
                 // eslint-disable-next-line no-async-promise-executor
                 return new Promise(async resolve => {
                     let accessedRoutes
-                    accessedRoutes = deepClone(asyncRoutes)
                     // 设置 routes 数据
+                    const userStore = useUserStore()
+                    const permissions = await userStore.getPermissions()
+                    accessedRoutes = filterAsyncRoutes(asyncRoutes, permissions)
                     this.isGenerate = true
                     this.routes = accessedRoutes.filter(item => item.children.length !== 0)
                     resolve()

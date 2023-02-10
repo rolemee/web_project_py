@@ -111,6 +111,7 @@ async def post_question(user:User =Depends(get_current_active_user),title:str=Fo
         await mlsearch.insert(qid,title,keywords.split(','))
         return {'code':200,'message':'发表问题成功','data':{"qid":qid}}
     except:
+        traceback.print_exc()
         return {'code':500,'message':'服务器错误','data':{}}
 
 @router.post('/api/delquiz',response_model=Response)
@@ -212,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket, userId: str):
 
 def sms(num:int,receiver:str):
 
-    key = 'xxx'  # 换成你的QQ邮箱SMTP的授权码(QQ邮箱设置里)
+    key = 'yfvihrkaskpdibgd'  # 换成你的QQ邮箱SMTP的授权码(QQ邮箱设置里)
     EMAIL_ADDRESS = '1556444893@qq.com'  # 换成你的邮箱地址
     EMAIL_PASSWORD = key
     smtp = smtplib.SMTP('smtp.qq.com', 25)

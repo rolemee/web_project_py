@@ -21,7 +21,7 @@ const userStore = useUserStore()
 const title = import.meta.env.VITE_APP_TITLE
 
 // 表单类型，login 登录，reset 重置密码
-const formType = ref('login')
+let formType = ref('login')
 
 // 登录
 const loginForm = ref({
@@ -102,23 +102,80 @@ function handleRegister() {
 
 // 重置密码
 const resetForm = ref({
-    account: localStorage.login_account || '',
+    email: '',
     captcha: '',
     newPassword: ''
 })
+let text = ref('获取验证码')
+let disableButton = ref(false)
+let nowTime = ref(25)
 const resetRules = ref({
-    account: [
-        { required: true, trigger: 'blur', message: '请输入用户名' }
+    email: [
+        { required: true, trigger: 'blur', message: '请输入用户名' },
+        { type: 'email', trigger: 'blur', message: '请输入正确的邮箱格式' }
     ],
     captcha: [
         { required: true, trigger: 'blur', message: '请输入验证码' }
     ],
     newPassword: [
-        { required: true, trigger: 'blur', message: '请输入新密码' },
-        { min: 6, max: 18, trigger: 'blur', message: '密码长度为6到18位' }
+        { required: true, trigger: 'blur', message: '请输入新密码' }
     ]
 })
-
+function sendCaptcha() {
+    proxy.$refs.resetFormRef.validateField('email', valid => {
+        if (valid) {
+            disableButton.value = true
+            new Promise((resolve, reject) => {
+                // 获取权限
+                api.post('/api/sendmail', {
+                    mail: resetForm.value.email
+                }).then(() => {
+                    ElMessage({
+                        type: 'success',
+                        message: '验证码已经发至邮箱'
+                    })
+                }).catch(error => {
+                    reject(error)
+                })
+            })
+            const TIP_TEXT = '{{time}}s后重新获取'
+            text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
+            let checkFlag = setInterval(() => {
+                nowTime.value--
+                if (nowTime.value <= 0) {
+                    text.value = '获取验证码'
+                    clearInterval(checkFlag)
+                    disableButton.value = false
+                    nowTime.value = 25
+                } else {
+                    text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
+                }
+            }, 1000)
+        }
+    })
+}
+// 修改密码
+function handleChg() {
+    proxy.$refs.resetFormRef.validate(valid => {
+        if (valid) {
+            // 这里编写业务代码
+            const resetData = {
+                mail: resetForm.value.email,
+                newpassword: resetForm.value.newPassword,
+                checknum: resetForm.value.captcha
+            }
+            api.post('/api/forgetpassword', resetData).then(() => {
+                ElMessage({
+                    type: 'success',
+                    message: '密码修改成功'
+                })
+                formType.value = 'login'
+            }).catch(err => {
+                console.log(err)
+            })
+        }
+    })
+}
 const loading = ref(false)
 const passwordType = ref('password')
 const redirect = ref(null)
@@ -175,7 +232,7 @@ function showPassword() {
                 <el-button :loading="loading" type="primary" size="large" style="width: 100%;" @click.prevent="handleLogin">登录</el-button>
                 <div class="sub-link">
                     <span class="text">还没有帐号?</span>
-                    <el-link type="primary" :underline="false" @click="formType = 'register'">创建新帐号</el-link>
+                    <el-link class="register-link" type="primary" :underline="false" @click="formType = 'register'">创建新帐号</el-link>
                 </div>
             </el-form>
             <el-form v-show="formType === 'register'" ref="registerFormRef" :model="registerForm" :rules="registerRules" class="login-form" auto-complete="on">
@@ -227,13 +284,13 @@ function showPassword() {
                     <el-link type="primary" :underline="false" @click="formType = 'login'">去登录</el-link>
                 </div>
             </el-form>
-            <el-form v-show="formType == 'reset'" ref="resetFormRef" :model="resetForm" :rules="resetRules" class="login-form" auto-complete="on">
+            <el-form v-show="formType === 'reset'" ref="resetFormRef" :model="resetForm" :rules="resetRules" class="login-form" auto-complete="on">
                 <div class="title-container">
                     <h3 class="title">修改密码</h3>
                 </div>
                 <div>
                     <el-form-item prop="account">
-                        <el-input ref="name" v-model="resetForm.account" placeholder="用户名" tabindex="1" autocomplete="on">
+                        <el-input ref="name" v-model="resetForm.email" placeholder="邮箱" tabindex="1" autocomplete="on">
                             <template #prefix>
                                 <el-icon>
                                     <svg-icon name="user" />
@@ -241,15 +298,15 @@ function showPassword() {
                             </template>
                         </el-input>
                     </el-form-item>
-                    <el-form-item prop="oldPassword">
-                        <el-input ref="oldPassword" v-model="resetForm.newPassword" :type="passwordType" placeholder="旧密码" tabindex="2" autocomplete="on">
+                    <el-form-item prop="captcha">
+                        <el-input ref="captcha" v-model="resetForm.captcha" placeholder="验证码" tabindex="2" autocomplete="on">
                             <template #prefix>
                                 <el-icon>
                                     <svg-icon name="captcha" />
                                 </el-icon>
                             </template>
                             <template #append>
-                                <el-button>发送验证码</el-button>
+                                <el-button :disabled="disableButton" @click="sendCaptcha">{{ text }}</el-button>
                             </template>
                         </el-input>
                     </el-form-item>
@@ -268,13 +325,13 @@ function showPassword() {
                         </el-input>
                     </el-form-item>
                 </div>
-                <el-button :loading="loading" type="primary" size="large" style="width: 100%; margin-top: 20px;">确认</el-button>
+                <el-button :loading="loading" type="primary" size="large" style="width: 100%; margin-top: 20px;" @click.prevent="handleChg">确认</el-button>
                 <div class="sub-link">
                     <el-link type="primary" :underline="false" @click="formType = 'login'">返回登录</el-link>
                 </div>
             </el-form>
         </div>
-        <Copyright v-if="settingsStore.copyright.enable" style="color: black"/>
+        <Copyright v-if="settingsStore.copyright.enable" style="color: #606266"/>
     </div>
 </template>
 
@@ -325,17 +382,17 @@ function showPassword() {
     z-index: 0;
     width: 100%;
     height: 100%;
-    background: url("@/assets/images/login-backgrond.png") no-repeat;
+    background: url("@/assets/images/login-backgrond.jpg") no-repeat;
     background-size: cover;
 }
 #login-box {
     display: flex;
     justify-content: space-between;
     position: absolute;
-    top: 50%;
+    top: 48%;
     left: 50%;
     transform: translateX(-50%) translateY(-50%);
-    background-color: rgba(255, 255, 255, 0.73);
+    background-color: rgba(255, 255, 255, 0.3);
     border-radius: 10px;
     overflow: hidden;
     box-shadow: var(--el-box-shadow);
@@ -349,12 +406,19 @@ function showPassword() {
         overflow: hidden;
         .title-container {
             position: relative;
+            text-align: center;
             .title {
-                font-size: 1.3em;
+                font-size: 1.5em;
                 color: var(--el-text-color-primary);
                 margin: 0 auto 30px;
                 font-weight: bold;
             }
+        }
+    }
+    .register-link {
+        color: rgba(255, 255, 255, 0.7);
+        &:hover {
+            color: #303133;
         }
     }
     .el-form-item {

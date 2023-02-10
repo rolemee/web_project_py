@@ -6,7 +6,6 @@ let globalSettings = {
         elementSize: 'default',
         // 是否将 iconify 图标集中的 Element Plus 图标下载到本地，以便在离线环境下使用
         iconifyOfflineUse: false,
-        enablePermission: false,
         // 是否开启载入进度条
         enableProgress: true,
         // 是否开启动态标题
