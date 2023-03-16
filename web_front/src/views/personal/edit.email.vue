@@ -7,8 +7,9 @@
 </route>
 
 <script setup name="PersonalEditEmail">
+import api from '@/api'
+
 const route = useRoute(), router = useRouter()
-const { proxy } = getCurrentInstance()
 
 import useUserStore from '@/store/modules/user'
 const userStore = useUserStore()
@@ -21,7 +22,7 @@ const form = ref({
 const rules = ref({
     email: [
         { required: true, message: '请输入邮箱', trigger: 'blur' },
-        { type: 'email', trigger: 'blur', message: '请输入正确的邮箱格式'}
+        { type: 'email', trigger: 'blur', message: '请输入正确的邮箱格式' }
     ],
     captcha: [
         { required: true, trigger: 'blur', message: '请输入验证码' },
@@ -31,73 +32,54 @@ const rules = ref({
 
 const disableButton = ref(false)
 const TIP_TEXT = '{{time}}s后重新获取'
-const DELAY_TIME = 20
+const DELAY_TIME = 25
 let nowTime = ref(DELAY_TIME)
 const text = ref('发送验证码')
-
+const formRef = ref(null)
 function sendCaptcha() {
     nowTime.value = DELAY_TIME
-    text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
-    let checkFlag = setInterval(() => {
-        nowTime.value--
-        if (nowTime.value <= 0) {
-            text.value = '发送验证码'
-            clearInterval(checkFlag)
-            disableButton.value = false
-        } else {
+    formRef.value.validateField('email', valid => {
+        if (valid) {
+            new Promise((resolve, reject) => {
+                // 获取权限
+                api.post('/api/sendmail', {
+                    mail: form.value.email
+                }).then(() => {
+                    ElMessage({
+                        type: 'success',
+                        message: '验证码已经发至邮箱'
+                    })
+                }).catch(error => {
+                    reject(error)
+                })
+            })
             text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
+            let checkFlag = setInterval(() => {
+                nowTime.value--
+                if (nowTime.value <= 0) {
+                    text.value = '发送验证码'
+                    clearInterval(checkFlag)
+                    disableButton.value = false
+                } else {
+                    text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
+                }
+            }, 1000)
         }
-    }, 1000)
-    // form.value.validateField('account',valid => {
-    //     if (valid) {
-    //         disableButton.value = true
-    //         // console.log("发送验证码"+resetForm.value.account)
-    //         //此处API向手机发送短信
-    //         new Promise((resolve, reject) => {
-    //             api.get('/api/v1/login/getVerificationCode',{
-    //                 params: {
-    //                     loginName: resetForm.value.account
-    //                 }
-    //             }).then(res => {
-    //                 resetForm.value.captcha = res.data ?? ''
-    //                 resolve(res.data)
-    //             }).catch(err => {
-    //                 reject(err)
-    //             })
-    //         })
-    //         nowTime.value = DELAY_TIME
-    //         text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
-    //         let checkFlag = setInterval(() => {
-    //             nowTime.value--
-    //             if (nowTime.value <= 0) {
-    //                 text.value = t('app.sendCaptcha')
-    //                 clearInterval(checkFlag)
-    //                 disableButton.value = false
-    //             } else {
-    //                 text.value = TIP_TEXT.replace('{{time}}', nowTime.value)
-    //             }
-    //         }, 1000)
-    //     }
-    // })
-
+    })
 }
 
 function onSubmit() {
-    proxy.$refs['formRef'].validate(valid => {
+    formRef.value.validate(valid => {
         if (valid) {
-            userStore.editPassword(form.value).then(() => {
+            api.post('api/checkmail', {
+                mail: form.value.email,
+                checknum: form.value.captcha
+            }).then(() => {
                 ElMessage({
                     type: 'success',
-                    message: '模拟修改成功，请重新登录'
+                    message: '邮箱绑定成功'
                 })
-                userStore.logout().then(() => {
-                    router.push({
-                        name: 'login',
-                        query: {
-                            redirect: route.fullPath
-                        }
-                    })
-                })
+                goBack()
             }).catch(() => {})
         }
     })

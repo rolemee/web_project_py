@@ -16,7 +16,7 @@ async def index():
     return RedirectResponse(url='/index.html')
 app.mount("/", StaticFiles(directory="../dist"), name="dist")
 
-# app.exception_handler(dependencies.UnicornException)
+#app.exception_handler(dependencies.UnicornException)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

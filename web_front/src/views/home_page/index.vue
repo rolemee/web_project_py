@@ -1,7 +1,6 @@
 <script setup name="HomePage">
 import useUserStore from '@/store/modules/user'
 import api from '@/api'
-import {ElMessage} from "element-plus";
 const userStore = useUserStore()
 
 const data = ref({
@@ -13,7 +12,7 @@ const data = ref({
     showMore: true
 })
 
-const router = useRouter()
+const router = useRouter(), route = useRoute()
 
 onMounted(() => {
     data.value.problems = []
@@ -134,7 +133,18 @@ function onCollection(qid, index) {
         ElMessage.error('当前未登录!!请先登录')
     }
 }
-
+// 分享
+function onShare(qid) {
+    let path = import.meta.env.VITE_APP_API_BASEURL + route.path.split('/')[1] + '/detail/' + qid
+    let input = document.createElement('input')
+    input.setAttribute('readonly', 'readonly')
+    input.value = path // 设置内容
+    document.body.appendChild(input) // 添加临时实例
+    input.select() // 选择实例内容
+    document.execCommand('Copy') // 执行复制
+    document.body.removeChild(input) // 删除临时实例
+    ElMessage.success('复制链接成功，快去分享')
+}
 // 我要提问
 function goPutProblem() {
     router.push({
@@ -234,6 +244,7 @@ function showMore(val, callback) {
                         @on-agree="onAgree(item.aid, index)"
                         @on-collection="onCollection(item.qid, index)"
                         @go-detail="enterNewPage(item.qid)"
+                        @on-share="onShare"
                     />
                 </template>
                 <collaspe-page v-if="data.showMore" v-loading="data.showMoreLoading" @un-collaspe="showMore" />
@@ -241,7 +252,7 @@ function showMore(val, callback) {
             <div class="box">
                 <div class="topbox">
                     <div class="title">问答小屋</div>
-                    <div class="line"></div>
+                    <div class="line" />
                     <div class="photo" />
                     <div class="tip-txt">
                         解决<p class="num">{{ data.problemNum }}</p>个问题

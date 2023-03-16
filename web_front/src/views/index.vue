@@ -8,19 +8,34 @@
 </route>
 <script setup name="dashboard">
 import useSettingsStore from '@/store/modules/settings'
+import useUserStore from '@/store/modules/user'
 import { onBeforeRouteLeave } from 'vue-router'
+import dayjs from 'dayjs'
+import api from '@/api'
 const settingsStore = useSettingsStore()
+const userStore = useUserStore()
 const router = useRouter()
 
+const logShow = ref()
+const data = ref({
+    loading: false,
+    // 列表数据
+    dataList: []
+})
 function tohome() {
-    router.push({
-        name: 'homePageList'
-    })
+    if (userStore.permissions[0] === 0)
+        router.push({
+            name: 'homePageList'
+        })
 }
-onMounted(() => {
+onMounted(async() => {
     if (!settingsStore.topStatus) {
         settingsStore.toggleTopCollapse()
-        // console.log(settingsStore.topStatus)
+    }
+    logShow.value = (await userStore.getPermissions())[0] !== 0
+    if (logShow.value) {
+        getLogList()
+        settingsStore.toggleTopCollapse()
     }
 })
 onBeforeRouteLeave(() => {
@@ -32,15 +47,41 @@ onBeforeRouteLeave(() => {
 function showTop() {
     settingsStore.toggleTopCollapse()
 }
+// 获取日志
+function getLogList() {
+    data.value.loading = true
+    api.get('/api/log', {
+        params: {
+            offset: 0,
+            limit: 10,
+            userId: userStore.account
+        }
+    }).then(res => {
+        data.value.dataList = []
+        console.log(res.data.quiz_list)
+        res.data.quiz_list.forEach((item, index) => {
+            let cache = {
+                'id': index + 1,
+                'logDate': item.log_date.replace('T', ' ').split('.')[0],
+                'logName': item.userId,
+                'logInfo': item.operation
+            }
+            data.value.dataList.push(cache)
+        })
+    }).catch(() => {
+        data.value.dataList = []
+    })
+    data.value.loading = false
+}
 </script>
 <template>
     <div>
-        <div class="backgroundImg">
+        <div v-if="!logShow" class="backgroundImg">
             <div style="display: flex;justify-content: center;width: 100%">
                 <el-icon v-if="settingsStore.topStatus" class="top-icon-box" @click="showTop">
                     <svg-icon name="ep:arrow-down" class="top-icon" />
                 </el-icon>
-                <el-icon v-else @click="showTop" class="top-icon-box">
+                <el-icon v-else class="top-icon-box" @click="showTop">
                     <svg-icon name="ep:arrow-up" class="top-icon" />
                 </el-icon>
             </div>
@@ -48,7 +89,30 @@ function showTop() {
                 <span class="enter"> Enter  →</span>
             </button>
         </div>
-        <Copyright class="copyright" />
+        <div v-else style="margin: 10px 20px">
+            <el-table ref="table" v-loading="data.loading" class="list-table" :data="data.dataList" border stripe highlight-current-row>
+                <el-table-column prop="id" label="日志编号" width="150" align="center" />
+                <el-table-column
+                    prop="logDate"
+                    label="日志日期"
+                    width="200"
+                    align="center"
+                />
+                <el-table-column
+                    prop="logInfo"
+                    label="日志信息"
+                    align="center"
+                />
+                <el-table-column
+                    prop="logName"
+                    label="用户名"
+                    width="200"
+                    align="center"
+                    sortable
+                />
+            </el-table>
+        </div>
+        <Copyright class="copyright" :style="{color: logShow ? 'var(--el-text-color-secondary)': ''}" />
     </div>
 </template>
 

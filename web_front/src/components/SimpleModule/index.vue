@@ -65,7 +65,7 @@ const props = defineProps({
     }
 })
 
-const $emit = defineEmits(['onAgree', 'unAgree', 'onCollection', 'enterNewPage', 'goDetail'])
+const $emit = defineEmits(['onAgree', 'unAgree', 'onCollection', 'enterNewPage', 'goDetail', 'onShare'])
 
 const isUnfold = ref(true)
 const detailShow = ref(false)
@@ -122,7 +122,7 @@ function onReply() {
 }
 //
 function onShare() {
-    window.clipboardData.setData('Text', 'a')
+    $emit('onShare', props.problemId)
 }
 
 </script>

@@ -9,10 +9,11 @@ import asyncio
 import psycopg2
 import multiprocessing
 res_list = []
+res_list2 = []
 # testnum = 1
 def connect():
-    return psycopg2.connect(user='rolemee', password='',
-                                    dbname='web-project' ,host='127.0.0.1')
+    return psycopg2.connect(user='postgres', password='root',
+                                    dbname='postgres' ,host='127.0.0.1')
 
 class Ask(object):
     def __init__(self,qid, questionTitle, userId, time, query_text, reply, keyWords):
@@ -49,7 +50,7 @@ def init(filename,user='alldata'):
     # sum_total.value +=1
     # if sum_total.value %100 == 0:
     #     print(sum_total.value)
-    # # try:
+    # try:
     #     with open(f'data/{user}/html/'+filename,'r',encoding='utf-8') as f:
     #         f.read()
     #         pass
@@ -140,6 +141,8 @@ def init(filename,user='alldata'):
 
                 ask = Ask(qid,ask_title,ask_id,ask_time,ask_content,answer_list,ask_tag)
                 res_list.append(ask.__dict__)
+                #res_list2.append(res_list[0])
+                #print(res_list[0])
                 connection.commit()
                 conn.close()
     except:
@@ -148,32 +151,36 @@ def init(filename,user='alldata'):
         traceback.print_exc()
         print(filename)
 
-connection = connect()
-conn = connection.cursor()
-conn.execute('''
-    truncate table web_project.answer,web_project.quiz,web_project."user";
-    TRUNCATE web_project.quiz,web_project.answer,web_project."user" RESTART IDENTITY CASCADE;
-''')
-connection.commit()
-userlist = os.listdir(f'data/alldata/html/')
-res_list = multiprocessing.Manager().list()
-sum_total = multiprocessing.Value('i',0)
-start_time = time.time()
-sum = 0
-# for i in tqdm.tqdm(userlist):
-#     init(i)
-#     if sum >=100:
-#         break
-#     sum+=1
-with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
-    for _ in tqdm.tqdm(p.imap(init, (userlist)),total=len(userlist)):
-        pass
+if __name__ == '__main__':
+    connection = connect()
+    conn = connection.cursor()
+    conn.execute('''
+        truncate table web_project.answer,web_project.quiz,web_project."user";
+        TRUNCATE web_project.quiz,web_project.answer,web_project."user" RESTART IDENTITY CASCADE;
+    ''')
+    connection.commit()
+    userlist = os.listdir(f'data/alldata/html/')
+    #res_list = multiprocessing.Manager().list()
+    sum_total = multiprocessing.Value('i',0)
+    start_time = time.time()
+    sum = 0
+    # for i in tqdm.tqdm(userlist):
+    #     init(i)
+    #     if sum >=100:
+    #         break
+    #     sum+=1
+    # with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+    #     for _ in tqdm.tqdm(p.imap(init, (userlist)),total=len(userlist)):
+    #         pass 
 
-conn.execute('''
-    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
-    select setval('web_project.answer_id_seq',(select max(id) from web_project.answer))
-''')
-connection.commit()
-conn.close()
-with open('data.json','w') as f:
-    f.write(json.dumps(list(res_list),ensure_ascii=False,indent=4))
+
+    for i in tqdm.tqdm(os.listdir(f'data/alldata/html')):
+        init(i)
+    conn.execute('''
+        select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
+        select setval('web_project.answer_id_seq',(select max(id) from web_project.answer))
+    ''')
+    connection.commit()
+    conn.close()
+    with open('data.json','w',encoding='utf-8') as f:
+        f.write(json.dumps((res_list),ensure_ascii=False,indent=4))

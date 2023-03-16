@@ -6,7 +6,15 @@ from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 import hashlib
-
+from flask import Flask
+# smtplib 用于邮件的发信动作
+import smtplib
+# email 用于构建邮件内容
+from email.mime.text import MIMEText
+# 构建邮件头
+import ssl
+import random
+from email.message import EmailMessage
 import traceback,os
 router = APIRouter()
 class ConnectionManager:
@@ -103,6 +111,7 @@ async def post_question(user:User =Depends(get_current_active_user),title:str=Fo
         await mlsearch.insert(qid,title,keywords.split(','))
         return {'code':200,'message':'发表问题成功','data':{"qid":qid}}
     except:
+        traceback.print_exc()
         return {'code':500,'message':'服务器错误','data':{}}
 
 @router.post('/api/delquiz',response_model=Response)
@@ -201,3 +210,74 @@ async def websocket_endpoint(websocket: WebSocket, userId: str):
 # @router.get("/test/{userId}")
 # async def test(userId: str):
 #     await manager.active_connections_dict[userId].send_text('我是'+userId)
+
+def sms(num:int,receiver:str):
+
+    key = 'yfvihrkaskpdibgd'  # 换成你的QQ邮箱SMTP的授权码(QQ邮箱设置里)
+    EMAIL_ADDRESS = '1556444893@qq.com'  # 换成你的邮箱地址
+    EMAIL_PASSWORD = key
+    smtp = smtplib.SMTP('smtp.qq.com', 25)
+    context = ssl.create_default_context()
+    sender = EMAIL_ADDRESS  # 发件邮箱
+    #receiver = ['1556444893@qq.com']
+    # 收件邮箱
+ 
+    subject = "验证码"
+    # 这里我调用了自己的接口，如果不需要直接将body改为 body = '正文'
+    #body = random.randint(1000,9999)
+    body = num
+    msg = EmailMessage()
+    msg['subject'] = subject  # 邮件主题
+    msg['From'] = sender
+    msg['To'] = receiver
+    msg.set_content("验证码为:"+str(body))  # 邮件内容
+ 
+    with smtplib.SMTP_SSL("smtp.qq.com", 465, context=context) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
+emil_dict={}
+
+@router.post('/api/sendmail',response_model=Response)
+async def send_mail(mail:str=Form()):
+    if mail =='':
+        raise ErrorOwn("请正确输入")
+    try:    
+        num = random.randint(1000,9999)
+        sms(num,mail)
+        emil_dict[mail]=num
+        return {'code':200,'message':'发送验证码成功','data':{}}
+    except:  
+        return {'code':200,'message':'邮箱错误','data':{}}
+
+@router.post('/api/checkmail',response_model=Response)
+async def check_mail(user:User=Depends(get_current_active_user),mail:str=Form(),checknum:str=Form()):
+    
+    userId = user.get('userId')
+    #print(checknum)
+    #print(emil_dict)
+    try:
+        if int(emil_dict[mail])==int(checknum):
+            await pgsql.edit_mail(userId,mail)
+            return {'code':200,'message':'验证码正确','data':{}}
+        else :
+            return {'code':400,'message':'验证码错误','data':{}}  
+    except:  
+        return {'code':200,'message':'邮箱错误','data':{}} 
+
+@router.post('/api/forgetpassword',response_model=Response)
+async def forget_password(mail:str=Form(),newpassword:str=Form(),checknum:str=Form()):
+    if newpassword =='':
+        raise ErrorOwn("请正确输入")
+    try:
+        if int(emil_dict[mail])==int(checknum):
+            await pgsql.forget_password(mail,pwd_context.encrypt(newpassword))
+            return {'code':200,'message':'修改密码成功','data':{}}
+        else :
+            return {'code':400,'message':'验证码错误','data':{}}  
+    except:  
+        return {'code':200,'message':'邮箱错误','data':{}}     
+
+
+
+

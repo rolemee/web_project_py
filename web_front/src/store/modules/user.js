@@ -11,7 +11,7 @@ const useUserStore = defineStore(
             account: localStorage.account || '',
             userAvatar: localStorage.userAvatar || '',
             token: localStorage.token || '',
-            permissions: [0]
+            permissions: []
         }),
         getters: {
             isLogin: state => {
@@ -25,14 +25,12 @@ const useUserStore = defineStore(
         actions: {
             login(data) {
                 return new Promise((resolve, reject) => {
-                    // 通过 mock 进行登录
                     api.post('api/login', data).then(res => {
                         localStorage.setItem('account', data.userId)
                         localStorage.setItem('token', res.data.token)
-                        let strings = res.data.token.split('.') // 截取token，获取载体
-                        let userinfo = JSON.parse(decodeURIComponent(escape(window.atob(strings[1].replace(/-/g, '+').replace(/_/g, '/')))))
-                        this.permissions = [userinfo['rights']]
-                        // console.log(this.permissions)
+                        const routeStore = useRouteStore()
+                        routeStore.isGenerate = false
+                        routeStore.removeRoutes()
                         this.account = data.userId
                         this.token = res.data.token
                         api.get('/api/selfinfo').then(res => {
@@ -56,6 +54,7 @@ const useUserStore = defineStore(
                     this.userAvatar = ''
                     this.account = ''
                     this.token = ''
+                    this.permissions = [0]
                     routeStore.removeRoutes()
                     menuStore.setActived(0)
                     resolve()
@@ -70,6 +69,19 @@ const useUserStore = defineStore(
                         resolve()
                     })
                 })
+            },
+            getPermissions() {
+                return new Promise(resolve => {
+                    if (this.token) {
+                        let strings = this.token.split('.') // 截取token，获取载体
+                        let userinfo = JSON.parse(decodeURIComponent(escape(window.atob(strings[1].replace(/-/g, '+').replace(/_/g, '/')))))
+                        this.permissions = [userinfo['rights']]
+                        resolve([userinfo['rights']])
+                    } else {
+                        resolve([0])
+                    }
+                })
+
             }
         }
     }

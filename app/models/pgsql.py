@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 from passlib.context import CryptContext
 from functools import wraps
-from datetime import date
+from datetime import date,datetime
 
 import traceback
 pool = None
@@ -469,4 +469,85 @@ async def edit_avatar(userId:str,avatar_url:str):
         values = await conn.execute(
             sql,avatar_url,userId
         )
+    return values
+
+@check_conn
+async def check_rights(userId:str):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select "rights" from web_project."user" where "userId" = $1;'
+        values = await connection.fetch(
+            sql,userId
+        )
+        return values    
+
+@check_conn
+async def search_log(userId:str,limit:int=10,offset:int=0,start_time:date=date(1970,1,1),end_time:date=date(2099,12,31)):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select log_date,"userId",operation from web_project.user_log where log_date>=$1 and log_date<=$2 and "userId" = $3 LIMIT $4 OFFSET $5;'
+        values = await connection.fetch(
+            sql,start_time,end_time,userId,limit,offset
+        )
+        return values 
+
+@check_conn
+async def search_log_cnt(userId:str,start_time:date=date(1970,1,1),end_time:date=date(2099,12,31)):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select count(1) from web_project.user_log where "userId"=$1 and log_date>=$2 and log_date<=$3;'
+        values = await connection.fetch(
+            sql,userId,start_time,end_time
+        )
+        return values
+
+@check_conn
+async def search_alllog(limit:int,offset:int,start_time:datetime,end_time:datetime):
+    
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select log_date,"userId",operation from web_project.user_log where log_date>=$1 and log_date<=$2 LIMIT $3 OFFSET $4 ;'
+        values = await connection.fetch(
+            sql,start_time,end_time,limit,offset
+        )
+        return values    
+
+@check_conn
+async def search_log_cntall(start_time:date,end_time:date):
+    global pool
+    async with pool.acquire() as connection:
+        sql = 'select count(1) from web_project.user_log where log_date>=$1 and log_date<=$2;'
+        values = await connection.fetch(
+            sql,start_time,end_time
+        )
+        return values
+
+@check_conn
+async def edit_mail(userId:str,mail:str):
+    global pool
+    sql = '''
+        UPDATE web_project."user" SET mail = $2 WHERE "userId"=$1;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,userId,mail
+        )
+
+    return values                        
+
+#UPDATE web_project."user" SET mail = '1556444894@qq.com' WHERE "userId"='wscc';
+@check_conn
+async def forget_password(mail:str,password:str):
+    global pool
+
+    sql = '''
+        UPDATE web_project."user"
+        SET password = $2::varchar(60)
+        WHERE "mail"=$1;
+        '''
+    async with pool.acquire() as conn:
+        values = await conn.fetch(
+            sql,mail,password
+        )
+
     return values
