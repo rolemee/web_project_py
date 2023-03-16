@@ -62,10 +62,16 @@ async def finish_set():
         values = await conn.fetch(
             sql
         )
-        sql = """
-    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));
 
-create function max_like_reply_id_fun() returns trigger
+    sql = """
+    select setval('web_project.quiz_qid_seq',(select max(qid) from web_project.quiz));"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
+
+    sql="""
+    create or replace  function max_like_reply_id_fun() returns trigger
     language plpgsql
 as
 $$
@@ -73,17 +79,34 @@ $$
       update web_project.quiz set max_like_reply_id=(select "id" from web_project.answer where qid=new.qid order by "like" DESC limit 1 ) where qid=new.qid;
       return new;
    END
-$$;
+$$;"""
+    async with conn.transaction():
+            values = await conn.fetch(
+                sql
+            )
 
-alter function max_like_reply_id_fun() owner to rolemee;
+    sql="""
+alter function max_like_reply_id_fun() owner to postgres;"""
+    async with conn.transaction():
+            values = await conn.fetch(
+                sql
+            )
 
-create trigger max_like_count
+    sql="""
+create or replace  trigger max_like_count
     after insert or update
         of "like"
-    on answer
+    on web_project.answer
     for each row
 execute procedure max_like_reply_id_fun();
-create function sum_reply() returns trigger
+"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
+
+    sql="""
+create or replace  function sum_reply() returns trigger
     language plpgsql
 as
 $$
@@ -91,13 +114,21 @@ $$
         UPDATE web_project.quiz set ans_num = (select count(id) from web_project.answer where answer.qid=new.qid) where qid=new.qid;
         RETURN new;
     end;
-    $$;
+    $$;"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
 
-alter function sum_reply() owner to rolemee;
+    sql="""alter function sum_reply() owner to postgres;"""
+    async with conn.transaction():
+        values = await conn.fetch(
+            sql
+        )
 
-create trigger ans_sum_t
+    sql="""create or replace  trigger ans_sum_t
     after insert
-    on answer
+    on web_project.answer
     for each row
 execute procedure sum_reply();
 
@@ -111,7 +142,7 @@ loop = asyncio.get_event_loop()
 
 import traceback
 from datetime import datetime
-with open('data.json','r') as f:
+with open('data.json','r',encoding='utf-8') as f:
     json_content = json.load(f)
 loop.run_until_complete(connect())
 qid = 1
@@ -124,10 +155,10 @@ for i in tqdm.tqdm(json_content):
         if i['time'].find('-') ==-1:
             Time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(i['time'])))
         try:
-            loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
+            loop.run_until_complete(insert_quiz(i['id'],i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
         except:
             loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
-            loop.run_until_complete(insert_quiz(qid,i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
+            loop.run_until_complete(insert_quiz(i['id'],i['userId'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),i['questionTitle'],i['query_text'],0,0,len(i['reply']),i['keyWords']))
         qid+=1
         if len(i['reply']) == 0:
             continue
@@ -149,16 +180,16 @@ for i in tqdm.tqdm(json_content):
                 elif j['time'].find(':') ==-1:
                     Time = Time + " 00:00:00"
                 try:
-                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
+                    loop.run_until_complete(insert_answer(aid,j['userId'],i['id'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
                 except:
                     loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
-                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
+                    loop.run_until_complete(insert_answer(aid,j['userId'],i['id'],datetime.strptime(Time,'%Y-%m-%d %H:%M:%S'),j['content'],int(j['like']),int(j['unlikes'])))
             else:
                 try:
-                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
+                    loop.run_until_complete(insert_answer(aid,j['userId'],i['id'],None,j['content'],int(j['like']),int(j['unlikes'])))
                 except:
                     loop.run_until_complete(insert_username(i['userId'],i['userId'],"imported_user"))
-                    loop.run_until_complete(insert_answer(aid,j['userId'],qid-1,None,j['content'],int(j['like']),int(j['unlikes'])))
+                    loop.run_until_complete(insert_answer(aid,j['userId'],i['id'],None,j['content'],int(j['like']),int(j['unlikes'])))
             aid+=1
         except:
             traceback.print_exc()
